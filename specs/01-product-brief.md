@@ -19,11 +19,24 @@ CCM and ECM vendors who want to ship a "private AI assistant" feature to their e
 | Signal | Source (from `90-stage1-trend-research.md`) | What it implies |
 |---|---|---|
 | Enterprise RAG market growing $1.94B → $9.86B 2025→2030, 38.4% CAGR | §1 Market Context | The category is now large enough that vendors will pay for a differentiated component |
-| The "on-prem + vendor-embedded" quadrant has no named incumbent in 2026 buyer guides | §2.2 Empty quadrant | First-mover positioning available |
 | EU AI Act enforcement on 2026-08-02 reshapes enterprise procurement | §1 | Compliance-ready posture is becoming buyer hygiene; on-prem is favored |
+| **AU Privacy Act 1988 review amendments rolling through 2026 + NDB scheme** [unconfirmed exact 2026 status — verify before vendor pitch] | new context (DEC-072) | AU/NZ first-wave buyers (DEC-072) face concrete data-residency procurement clauses; on-prem + sovereign-cloud-tenancy lands well |
 | Quadient publicly markets "Bring Your Own AI" framework | §13.1.2 | Direct integration shape exists — no need to invent it |
 | OpenText Content Aviator depends on frontier cloud models (Gemini / OpenAI / Nova) | §13.2.2 | Air-gapped buyers have an open complaint we can solve |
-| Open-source serving (vLLM) + open-weights (Qwen3 Apache 2.0) + retrieval stack (bge-m3 / bge-reranker-v2-m3) are production-ready in 2026 | §4, §5, §6 | The dependency floor is finally low enough for a solo team to ship a credible MVP |
+| Open-source serving (vLLM) + open-weights (Llama-3.1 / Mistral-Small, English-optimized per DEC-052) + retrieval stack (`bge-m3` / bge-reranker-v2-m3, embedding reverted from `bge-large-en-v1.5` per DEC-086 to restore hybrid dense+sparse retrieval) are production-ready in 2026 | §4, §5, §6 | The dependency floor is finally low enough for a solo team to ship a credible MVP |
+
+### 2.1 Why not the obvious cloud-vendor alternatives
+
+Stage 5 review (`92-stage5-review-memos.md` D2-01) flagged that the "empty quadrant" framing from earlier drafts was weakly supported and that the realistic 2026 competitive map is more crowded. Direct comparisons:
+
+| Cloud-vendor alternative | Why a customer might still choose GroundedDocs |
+|---|---|
+| Microsoft Copilot + Graph Connectors | Requires the customer to be inside M365 + Microsoft tenancy; cannot serve Documentum / OpenText / M-Files / Hyland customers without bringing the documents into Microsoft's index; LLM is closed-weight Azure OpenAI; air-gap not viable |
+| AWS Q Business | Requires AWS account + Bedrock; permission propagation works inside AWS but not into on-prem ECMs without connector-side ACL replication; LLM is closed-weight (Bedrock-hosted); air-gap not viable |
+| Glean (dedicated VPC) | Hosted in Glean-controlled cloud or customer VPC, but proprietary model and proprietary ranking stack; not model-swappable; license cost orientation does not match the OSS-first GTM (DEC-025) |
+| OpenText Content Aviator | Requires being already on OpenText; LLM is cloud frontier model (Gemini/OpenAI/Nova); air-gap not viable; competes for the same shelf inside the OpenText customer |
+
+**The GroundedDocs wedge against all four** is the combination of **open-weight + fully local LLM inference + model-swappable** (the §4 differentiator #1, revised) — none of these alternatives matches all three.
 
 ## 3. Personas (refined from `confirmed-context.md` §4)
 
@@ -41,13 +54,13 @@ The same persona table holds; PM-stage additions in **bold**.
 
 > **GroundedDocs is the on-prem, vendor-embeddable document Q&A agent for enterprises that need answers grounded in cited, verifiable sources — or no answer at all.**
 
-Five differentiators (confirmed at Stage 1):
+Five differentiators (confirmed at Stage 1; revised at Stage 5 per RC-T1-10/11; **Round 2 (2026-06-29) added explicit 2026-aligned safety + orchestration language per DEC-075 / DEC-077**):
 
-1. **On-prem deployment** — single-host installable; air-gap viable; runs on open-weights LLMs
+1. **Open-weight + fully local LLM inference + model-swappable** (the triple — revised from "On-prem deployment" because on-prem alone is no longer scarce in 2026; see §2.1)
 2. **Vendor-embeddable** — packaged so a CCM / ECM vendor can ship it as their own AI feature without re-architecting
-3. **Verified citation** — runtime mechanical + NLI grounding check; ungrounded citations are blocked before delivery
-4. **Refusal as a product feature** — configurable thresholds; the system says "I cannot confidently answer" rather than guess
-5. **Audit-ready by default** — every query, retrieval, answer, citation, and (V2) reviewer action persisted to an append-only log
+3. **Contract-grade Citation SLO** — runtime mechanical + NLI grounding check inside a **LangGraph-orchestrated verify node** (DEC-075) with measured thresholds (100% citation hit-rate hard gate per NFR-004, 5-class typed refusal, audit dual-write to ECM); packaged as a vendor-contractable SLO, not just a marketing claim. The graph's typed feedback edge (`verify/` → `generate/`) carries V2 mid-flight rewriting (REQ-020) as a node addition, not an architectural redo
+4. **Refusal as a product feature** — configurable thresholds; the system says "I cannot confidently answer" rather than guess; 5-class taxonomy per DEC-042 with both transparent and opaque modes shippable; **MVP layered safety rails** (DEC-077) — `Llama Prompt Guard 2` (input) + `Llama Guard 3 8B` (output) + `NeMo Guardrails` (orchestration policy) — match 2026 enterprise-RAG production default
+5. **Audit-ready by default** — every query, retrieval, answer, citation, **safety-rail verdict**, and (V2) reviewer action persisted to an append-only log; ECM audit write-back including denied-access attempts (DEC-064) closes the compliance audit chain
 
 ## 5. MVP Scope (DEC-005 pinned at Stage 0)
 
@@ -55,7 +68,7 @@ Five differentiators (confirmed at Stage 1):
 |---|---|---|
 | File upload (PDF text-extractable, Word, Markdown, plain text) | Must | REQ-001 |
 | Parse + chunk + embed + index pipeline | Must | REQ-002 |
-| Hybrid retrieval (dense + sparse + rerank) with multilingual baseline | Must | REQ-003 |
+| Hybrid retrieval (dense + sparse + rerank), **English baseline only per DEC-052** | Must | REQ-003 |
 | Generation with cited answers | Must | REQ-004 |
 | Runtime citation verification (mechanical chunk-overlap + NLI span check) | Must | REQ-005 |
 | Refusal policy with configurable threshold | Must | REQ-006 |
@@ -67,6 +80,10 @@ Five differentiators (confirmed at Stage 1):
 | Air-gap compatible runtime (no required outbound calls) | Must | REQ-012 |
 | RAGAS-based eval harness (offline) | Must | REQ-013 |
 | End-to-end example with sample CCM-style corpus | Must | REQ-014 |
+| **LangGraph 0.2.x pipeline orchestration with typed-state graph (DEC-075)** | **Must** | **REQ-046 (added Round 2)** |
+| **Redis / Valkey hot-path cache + ACL TTL discipline (DEC-076)** | **Must** | **REQ-047 (added Round 2)** |
+| **Layered safety rails: `Llama Prompt Guard 2` input + `Llama Guard 3 8B` output + `NeMo Guardrails` orchestration (DEC-077)** | **Must** | **REQ-048 (added Round 2)** |
+| **Golden set 150-200 prompts with 50-prompt smoke-test subset (DEC-078)** | **Must** | **REQ-014 (amended Round 2)** |
 
 ## 6. Non-Goals (MVP — confirmed at Stage 0, reaffirmed here)
 
@@ -79,10 +96,12 @@ Five differentiators (confirmed at Stage 1):
 | IM channel connectors (Slack, WeCom, Teams) | Vendor owns the channel surface | V2+ on request |
 | Mobile native apps | Vendor owns the surface | V3+ |
 | OCR for scanned PDF, complex table extraction | Citation accuracy collapses on these inputs (RISK-001) | V3+ |
-| Compliance certifications (SOC2 / HIPAA / PCI / MLPS L3) | First buyer profile is non-regulated; design must not block | When first regulated buyer signs |
+| Compliance certifications (SOC2 / HIPAA / PCI / MLPS L3 / IRAP) | First buyer profile is non-regulated; design must not block; AU/NZ regulated buyers may eventually need IRAP-aware posture | When first regulated buyer signs |
 | Multi-source connectors (SharePoint / file share / repository APIs) | Vendor handles ingest | V2 |
 | Human review queue UI | Foundation laid in audit log; queue UI is V2 | V2 |
 | Helm chart / HA deployment / blue-green reindex | Single-host docker-compose is MVP | V2 |
+| **Real-time access to in-flight (checked-out, uncommitted) document edits** (DEC-071) | GroundedDocs query semantics are **version-based** — only committed versions are queryable; matches 2026 best-practice of Microsoft Graph Connectors, AWS Q Business, Glean | **Permanently out of scope** — re-indexing happens via `version_added` CDC after checkin |
+| Multilingual baseline at MVP | DEC-052: English-only is hard constraint; schema reserves space for future language extension | When demand from a non-English market customer materializes |
 
 ## 7. Deferred Scope (explicitly named, not killed)
 
@@ -102,9 +121,25 @@ This is **roadmap intent**, not a commitment. Strategy after DEC-020 (open-sourc
 | **REQ-022** | **V2-governance-deep** | **Per-customer prompt template registry** (system prompts, refusal phrasing, citation format saved & versioned per customer) | Annual support |
 | **REQ-023** | **V2-tuning-deep** | **Customer-specific golden set** (admin curates 50–200 Q/A pairs in the admin UI; runs as the customer's own RAGAS baseline; used for regression checks) | Implementation + tuning |
 | **REQ-024** | **V2-tuning-deep** | **A/B prompt + model traffic split** (admin splits traffic across two prompts or two model adapters; RAGAS deltas reported) | Tuning |
-| **REQ-033** | **V2-LCC-enabler** | **Model adapter abstraction** — config-switch generation model (Qwen3 → Qwen4 / DeepSeek / commercial API) with no restart | LCC T1–T4 enabler |
+| **REQ-033** | **V2-LCC-enabler** | **Model adapter abstraction** — config-switch generation model (e.g. Llama-3.1 → Llama-3.2 / Mistral / commercial API per DEC-052 English stack) with no restart | LCC T1–T4 enabler |
 | **REQ-034** | **V2-LCC-enabler** | **Embedding model versioning + single-host blue/green re-embedding** | LCC T3 (Migration Execution) |
 | **REQ-035** | **V2-LCC-enabler** | **Per-answer context fingerprint in audit log** (model + embedding + reranker + prompt versions) | LCC forensics; all tiers |
+| **REQ-006d** | **MVP-promoted** | **5-class refusal taxonomy + `acl_denial_mode`** (real reason always in audit) | Adds `access_denied` + `verification_unavailable` |
+| **REQ-006a** | **MVP-promoted** | **Neighboring docs fallback on `no_recall`** (ACL-filtered) | Near-zero cost; high UX value |
+| **REQ-036** | **MVP-promoted** | **Two-layer authorization** (Layer 1 Qdrant filter pushdown + Layer 2 batch_check_access) + `ECMAdapter` interface + `LocalAdapter` + `OIDCAdapter` | Core ECM/CCM integration architecture |
+| **REQ-037** | **MVP-promoted** | **Retention state ingest + retrieval filter** | Physical delete; legal hold freeze |
+| **REQ-041** | **MVP-promoted** | **CDC consumer**: webhook + 30-min re-poll fallback | All ECM change event types |
+| **REQ-043** | **MVP-promoted** | **Audit pull API** (NDJSON + cursor) for vendor SIEM forwarding | Compliance audit chain |
+| **REQ-045** | **MVP-promoted** | **ECM audit write-back** (async best-effort) | Compliance — required by Documentum DAR / OpenText RM |
+| **REQ-038** | V2 | M-Files adapter | V2-β |
+| **REQ-039** | V2 | SharePoint / Graph adapter | V2-β |
+| **REQ-040** | V2 | Hyland Alfresco adapter | V2-β |
+| **REQ-044** | V2 | **Documentum + OpenText adapters (V2-α priority)** | Research-context primary targets |
+| **REQ-006b** | V2 | Query log + similar-question suggestions | Cross-user ACL safety required |
+| **REQ-006c** | V2 | Access-request workflow | Schema reserved in MVP (DEC-044) |
+| **REQ-051** | **V2** (Round 3, S3.1, DEC-084) | **Admin-configurable intent classifier + per-intent NLI policy** — may downgrade `nli_slow_path` to advisory for low-risk intents (chitchat / FAQ); per-customer SLA waiver required; mechanical-fast-path + audit are never skipped | Latency-saving for high-volume low-risk traffic; preserves SLO positioning via explicit waiver gate |
+| **REQ-052** | **V2** (Round 3, S3.2 + S4.1) | **Sentence-level streaming NLI** parallel to vLLM token streaming with early-stop on first failed claim | Cuts feedback-loop tail latency materially when feedback edge fires |
+| **REQ-053** | **V2** (Round 3, S6.4) | **Widget two-pass streaming UX** — first-pass output with `Correcting in progress…` indicator; corrected output diff-style against first pass | Turns feedback-edge mechanism into a trust-building UX surface |
 
 ### V3 — scale + customer-specific depth
 
@@ -118,6 +153,8 @@ This is **roadmap intent**, not a commitment. Strategy after DEC-020 (open-sourc
 | **REQ-030** | **Customer-corpus LoRA fine-tuning of BOTH reranker AND generator** (two independent adapters, trained separately, each on customer hardware) | DEC-023 + DEC-030: user attempts in-house; partner fallback |
 | **REQ-031** | **Corpus health dashboard** (admin sees stale docs / contradicting docs / low-citation docs / high-refusal query clusters → tells the customer what to curate) | Sticky annual-support deliverable |
 | **REQ-032** | **Tuning playbook as a product artifact** (your know-how distilled into executable recipes — "the 5 steps after first install"; also doubles as customer-team training material) | Annual support enabler |
+| **REQ-054** | **Advisory-only NLI mode** (Round 3, S4.3) — paired with REQ-051 V2 intent classifier; answer emitted immediately; NLI runs async; widget surfaces delayed disclaimer on fail. Mechanical citation + audit remain synchronous and authoritative | Service-level downgrade for high-volume / low-risk traffic; explicit per-customer SLA waiver |
+| **REQ-055** | **Federated retrieval path for `legal_hold` / `sensitivity: high` documents** (Round 3, S7.3, DEC-085) — bypasses pre-ingestion; `ECMSearchAPIAdapter` queries ECM Search API at runtime; ECM enforces ACL natively; no RAG-side retention | Canonical answer for AU/NZ regulated-vertical evaluators asking about content they can't risk replicating |
 
 ### Out of scope (any horizon, reaffirmed)
 
@@ -144,9 +181,23 @@ This is **roadmap intent**, not a commitment. Strategy after DEC-020 (open-sourc
 
 These numbers are for capacity planning, not selling. Actual pricing pinned only after first vendor pilot conversation (DEC-024).
 
-### Go-to-market (DEC-025)
+### Go-to-market (DEC-025 + DEC-072)
 
 **First wave = OSS community + industry events.** Direct CCM/ECM vendor outreach is second wave once the project has demonstrated community traction. DEC-018 retains the *vendor priority order* for that second wave (Smart Communications / M-Files / Hyland / regional vendors first; OpenText deprioritized).
+
+**Target market = Australia + New Zealand (DEC-072)** — user's existing customer relationships are AU/NZ; sovereign-cloud + "data must not leave country" procurement clauses common in AU public sector + finance + mining + NZ public sector; OpenText/Documentum installed base is substantial; compliance reference frame = AU Privacy Act 1988 + NDB + AU AI Ethics Principles 2019; NZ Privacy Act 2020 + IPP 13 principles.
+
+### Three-tier priority timeline (RC-T1-12)
+
+These three priority orderings are intentionally divergent; the table makes the timing explicit so vendor conversations can answer "who first?" cleanly:
+
+| Tier | Ordering | When |
+|---|---|---|
+| **First-wave channel** (DEC-025) | OSS community + industry events | Now → demo (originally DEC-026 3-month, **now 2027-03-26 per DEC-080**) |
+| **Sales priority** (DEC-018) | Smart Comm → M-Files → Hyland → regional CCM/ECM (OpenText deprioritized) | Second wave, post community traction |
+| **Technical adapter priority** (DEC-050) | V2-α = Documentum + OpenText (user's research context); V2-β = SharePoint + M-Files + Hyland; V2-γ = regional via partner | V2 build sequence (post-demo) |
+
+The asymmetry: technical adapters lead with Documentum + OpenText because that is where the user's research scoped; sales outreach starts elsewhere because the OpenText buyer overlap with Aviator is hostile. AU/NZ market reality (DEC-072) bridges the gap — both Documentum + OpenText and M-Files + Hyland are installed in AU/NZ.
 
 ### TAM ceiling honesty (RISK-011)
 
@@ -192,7 +243,7 @@ Builds on `confirmed-context.md` §5. New / refined risks in **bold**.
 |---|---|---|---|---|---|
 | RISK-001 | Citation accuracy collapses on real enterprise docs (scanned, tables, multi-column) | High | High | Architect | MVP corpus limited to born-digital; OCR deferred |
 | RISK-002 | "Refusal policy" stays a slogan without measured baselines | Medium | High | PM + Architect | RAGAS metrics + refusal-rate + hallucination-rate are mandatory MVP gates (see §9.1) |
-| RISK-003 | Open-source LLM hardware matrix expands beyond a solo team's capacity | High | Medium | Architect | One reference stack pinned (Qwen3 + bge-m3 + bge-reranker-v2-m3 + vLLM) per DEC-013/014/012; everything else "supported targets, document yourself" |
+| RISK-003 | Open-source LLM hardware matrix expands beyond a solo team's capacity | High | Medium | Architect | One reference stack pinned (Llama-3.1-8B/Mistral-Small-24B + `bge-m3` + bge-reranker-v2-m3 + vLLM per DEC-052 + DEC-086; embedding reverted to `bge-m3` — DEC-052's interim `bge-large-en-v1.5` swap is superseded, DEC-014's original `bge-m3` pin is reinstated to restore hybrid dense+sparse retrieval); everything else "supported targets, document yourself" |
 | RISK-004 | B2B2B buyer (vendor) and end user have different needs; UX/SLA conflict | Medium | Medium | PM | Vendor integration contract is a first-class spec; widget is themable; telemetry opt-in |
 | RISK-005 | Anti-hallucination guarantees imply legal exposure if mis-marketed | Low | High | PM | Position as process claim ("no answer without verifiable citation"), not outcome claim ("100% accurate") |
 | RISK-006 | Solo-project scope creep | High | High | All | Hard-pin MVP; defer at every stage gate |
@@ -201,10 +252,16 @@ Builds on `confirmed-context.md` §5. New / refined risks in **bold**.
 | RISK-009 | CCM-specific corpora are heavily templated (insurance letters, billing notices); RAGAS thresholds from generic benchmarks may not transfer | Medium | Medium | PM + Architect | Build a CCM-style synthetic golden set in MVP (REQ-014) and re-baseline; thresholds in §9.1 are a starting line, not the finish line |
 | RISK-010 | **Resolved by DEC-025** — first-wave channel changed from vendor outreach to OSS/events; original "no vendor access" concern no longer blocks demo path | — | — | — | Closed |
 | **RISK-011** | **TAM ceiling in service-heavy model (DEC-020)** — every customer needs your time; revenue scales linearly until partner / hiring leverage exists | Inherent | Medium | PM (user) | Honest framing in §8; partner fallback (DEC-023) on the table for technical-depth work first |
-| **RISK-012** | **3-month demo deadline (DEC-026) on a stack the user is learning while renting cloud GPU** — schedule risk dominates feature risk | High | High | PM (user) | Cut, don't pad: MVP REQ-001..014 is the limit; any slip cuts further; build plan in `10-build-plan.md` must front-load risk discovery (vLLM + Qwen3 + bge-m3 vertical slice in Phase 1) |
+| **RISK-012** | **Demo deadline 2027-03-26 (DEC-080, supersedes DEC-026 3-month) on a stack the user is learning while renting cloud GPU** — schedule risk dominates feature risk; under Round 2 scope expansion (DEC-075/076/077) the critical path is now LangGraph onboarding + Redis integration + layered-rail integration + RAGAS curation | High | High | PM (user) | Cut, don't pad: MVP scope is now REQ-001..014 + REQ-046..050 + REQ-056 + NFR-021..029 (see `02-requirements.md`); any slip cuts further; build plan in `10-build-plan.md` must front-load risk discovery (vLLM + English-only reference model + `bge-m3` vertical slice per DEC-086 + LangGraph skeleton in Phase 1, per DEC-052 + DEC-075). Team-materialisation checkpoint at 2026-08-29 per RISK-007 |
 | **RISK-013** | **Cloud-GPU dev environment ≠ customer's deployment environment** — works on RunPod, breaks on customer hardware | Medium | Medium | Architect | Architecture stage must produce a hardware compatibility matrix and at least one "borrowed real workstation" install rehearsal before any vendor demo |
 | **RISK-014** | **Open-source model lifecycle risk** — base model deprecated, license changed, CVE unpatched, new model significantly better, embedding model bumped requiring re-indexing | Inevitable (when, not if) | High | PM + Architect | LCC service package (DEC-028); REQ-033/034/035 are architectural enablers |
 | **RISK-015** | **Customer misled into self-training (L1/L2/L3)** by competitors or own sales — multi-month bad investment that we get blamed for when it fails | Medium | Medium | PM | DEC-029 official stance (L1 refuse; L2/L3 advisory + partner; L4 in-house); "Architecture for Insulation" white paper (DEC-031) inoculates the buyer conversation |
+| **RISK-016** | **ACL drift between vendor truth and our Layer 1 cache** → user sees results they should not, or vice versa | High (it will happen) | High (compliance + trust) | Architect | Two-layer authorization (DEC-046): Layer 2 batch_check_access catches Layer 1 drift; CDC keeps Layer 1 fresh; periodic re-poll fallback (REQ-041); short PDP cache TTL (30–60s) |
+| **RISK-017** | **Retention / legal-hold lag** — `retention_expired` or `legal_hold_added` event arrives late or is missed; LLM context leaks compliance-killed content | Medium-High | Critical (audit fail) | Architect + PM | CDC webhook + re-poll fallback (DEC-051); physical-delete-not-soft-flag (DEC-046); Layer 2 retention re-check on every query; integration tests NFR-014/015 |
+| **RISK-018** | **Per-vendor adapter maintenance ceiling** — each adapter is non-trivial code; solo capacity caps at ~3 supported vendors actively | High | Medium | PM | Partner pattern (DEC-029 L2/L3); Partner Adapter SDK (REQ-042) in V3 lets community / customer extend; sequence V2-α (Documentum + OpenText) before V2-β |
+| **RISK-019** | **English-only MVP scope (DEC-052) blocks non-English market entry** until V2 — Australian / NZ market is English so no MVP impact, but global expansion (especially Asia-Pacific outside ANZ) requires multi-language schema extension first | Low (no MVP impact); medium (V2+) | Medium | PM | DEC-052 schema-neutral provision; revisit when first non-English customer materializes |
+| **RISK-020** | **Positioning competitors** — Microsoft Copilot + Graph Connectors, AWS Q Business, Glean dedicated VPC all cover adjacent ground in 2026 [unconfirmed exact state]; sales conversation must reach the open-weight + local LLM + model-swappable wedge quickly | Medium | High | PM | §2.1 head-to-head subsection; demo material leads with the wedge; do not lean on "on-prem" as the sole differentiator |
+| **RISK-021** | **AU/NZ sovereign-cloud + IRAP procurement clauses (DEC-072)** may require additional attestation paperwork (e.g. IRAP assessment for federal customers, ASD Essential 8 alignment) before public-sector pilots | Medium | Medium | PM | Defer to first regulated AU buyer; `09-deployment-ops` includes a "compliance posture" section so the attestation evidence chain is ready |
 
 ## 11. Open Questions for User (Stage 2 batch — all resolved)
 
@@ -214,7 +271,7 @@ All four questions answered 2026-06-27. Each maps to a `DEC-###` in `13-decision
 |---|---|---|
 | Pricing/packaging direction | Defer | DEC-024 |
 | First-wave channel | OSS community + industry events (vendor outreach moves to second wave) | DEC-025 |
-| Demo deadline | 2026-09-27 (3 months) | DEC-026 |
+| Demo deadline | **2027-03-26 (team path) / 2027-05+ (solo path)** per DEC-080 + DEC-081. Originally 2026-09-27 (DEC-026, superseded), then 2026-12-26 (DEC-073 timeline portion, superseded), now lifted to 2027-03-26 under Round 2 scope (DEC-075/076/077) | DEC-026 → DEC-073 → DEC-080 |
 | Metric ownership | User runs RAGAS golden-set evals manually pre-demo | DEC-027 |
 
 Additional decisions from this round (hardware-pivot conversation):

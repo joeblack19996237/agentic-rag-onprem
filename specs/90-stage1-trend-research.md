@@ -3,6 +3,8 @@
 > Stage 1 deliverable produced by the `product-trend-researcher` role.
 > All claims cite a source URL with access date and a confidence tag.
 > Implications for Stage 2 (PM) and Stage 4 (architecture) are explicit at the end.
+>
+> **2026-06-28 supersede note**: Stage 5 architecture review (`92-stage5-review-memos.md`) + user decision **DEC-052** narrowed MVP scope to **English-only document retrieval**. The model-stack implications in §5 (Qwen3 family for multilingual) and §6 (bge-m3 for multilingual) are therefore **superseded** for MVP purposes — see `13-decision-log.md` DEC-052 and `04-architecture.md` §4.1 for the English-only reference stack. This file is preserved as a historical research snapshot; do not edit retroactively.
 
 - **Researcher**: idea-to-specs skill, run inline (subagent unavailable)
 - **Research date**: 2026-06-25
