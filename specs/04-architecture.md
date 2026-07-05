@@ -113,8 +113,8 @@ Rejected.
 | **Floor (reference)** | ≥ 24 GB VRAM | 64 GB | 200 GB SSD | `Llama-3.1-8B-Instruct` int4 OR `Mistral-Small-24B-Instruct` int4 | Llama Prompt Guard 2 (~1.5 GB) + Llama Guard 3 8B (~5 GB) + NeMo Guardrails (CPU only) | DEC-017 thresholds expected to hold | All customer demos, normal production at MVP |
 | **Comfort** | ≥ 32 GB VRAM | 96 GB | 500 GB SSD | `Mistral-Small-24B-Instruct` int4 (preferred quality) | Same rails + larger KV cache headroom for >2 concurrency post-DEC-076 Redis cache hits | DEC-017 thresholds met with headroom | Demos targeting larger corpora or stricter customers; lifts concurrency above the 24 GB floor cap |
 | **Performance** | ≥ 48 GB VRAM | 128 GB | 1 TB SSD | `Llama-3.1-70B-Instruct` int4 (V2 option) | Same rails + room for V2 layered eval (DeepEval CI in same host) | DEC-017 thresholds exceeded | LCC Tier 4 LTS engagements |
-| **Degraded** | 16-20 GB VRAM | 32 GB | 100 GB SSD | `Qwen2.5-7B-Instruct` int4 or `Phi-4` | Llama Prompt Guard 2 only; Llama Guard 3 swapped to a smaller policy LM (V2 deliverable) | Documented lower bound, not DEC-017 | Documented support only; demo on degraded tier requires explicit customer acknowledgement of safety-rail downgrade |
-| **CPU-only (degraded-edge)** | none | 32 GB | 100 GB SSD | `Phi-4` | NeMo Guardrails only; no LLM-class rails | Not committed | Documented support; latency violates NFR-005 |
+| **Degraded (GPU) — NOT SUPPORTED** *(corrected 2026-07-05 review finding, DEC-100)* | ~~16-20 GB VRAM~~ | — | — | — | — | — | **Removed**: every cataloged 16-20 GB GPU (Tesla T4, A2, RTX A4000) is explicitly rejected by §4.2.1's GPU sub-matrix as "insufficient for DEC-077 rails." This row previously claimed degraded-mode support for that same hardware, directly contradicting §4.2.1. The sub-matrix's per-model rejection is authoritative (finer-grained, DEC-079-dated); this row is retired rather than reconciled, because no actual GPU exists in the 16-20 GB window that isn't already on the rejection list. **24 GB is the hard GPU floor — there is no supported sub-24GB GPU tier.** |
+| **CPU-only (degraded-edge)** | none | 32 GB | 100 GB SSD | `Phi-4` | NeMo Guardrails only; no LLM-class rails | Not committed | Documented support; latency violates NFR-005. **This is now the only documented sub-24GB-floor fallback** (GPU-based degraded tier retired above) |
 
 This matrix is the customer-facing "will it run on my hardware" answer. RISK-013 mitigation is built around this. **Measured VRAM occupancy will be added in Stage 7** (`09-deployment-ops`) after a one-shot cloud-rig validation run covering the full DEC-077 layered-rail stack.
 
@@ -125,7 +125,7 @@ This matrix is the customer-facing "will it run on my hardware" answer. RISK-013
 | Consumer | RTX 4090 (24 GB), RTX 5090 (32 GB) | ✓ | ✓ (5090 only) | Most enterprise IT will not deploy in production rooms; OK for demo, evaluator hardware, internal use. **RTX 3060 / 4060 Ti / A4500 20 GB are now out of MVP support under DEC-079** |
 | Workstation | RTX 6000 Ada (48 GB), RTX A5000 (24 GB), A5500 (24 GB) | ✓ | ✓ (A6000 / 6000 Ada only) | Common in enterprise dev workstations; reliable for AU/NZ mid-size customers |
 | Server-grade | NVIDIA L40S (48 GB), A10 (24 GB), A100 (40/80 GB), H100 (80 GB), L4 (24 GB) | ✓ | ✓ (L40S, A100, H100) | Default for AU/NZ public sector + finance; certified for ACSC Essential Eight environments. A10/L4 sit exactly at the floor |
-| Older/restricted | Tesla T4 (16 GB), A2 (16 GB), RTX A4000 (16 GB) | **✗ (insufficient for DEC-077 rails)** | — | No longer supported under DEC-079. Customer pre-install conversation should refuse these explicitly |
+| Older/restricted | Tesla T4 (16 GB), A2 (16 GB), RTX A4000 (16 GB) | **✗ (insufficient for DEC-077 rails)** | — | No longer supported under DEC-079. Customer pre-install conversation should refuse these explicitly. **This rejection is authoritative** (DEC-100, 2026-07-05): §4.2's hardware matrix no longer carries a conflicting "Degraded (GPU)" tier for this VRAM range — CPU-only is the sole documented sub-24GB fallback |
 
 Customer pre-install conversation must confirm GPU class. `09-deployment-ops` ships a `gpu-check` script that validates against the DEC-079 floor.
 
@@ -206,8 +206,9 @@ class SafetyRailAdapter(Protocol):
 **Verdict-to-refusal mapping**:
 
 - Input-rail `flagged=true` → `policy_blocked` refusal; query never reaches `retrieve/` (graph state routes via `acl/` join discard per DEC-082)
+- Retrieval-rail (runs inside `acl/`'s Layer 2 join step, after PDP trim, per §8.1) per-chunk `flagged=true` → that chunk is dropped from the authorized set before `rerank/`, no refusal by itself (DEC-096); if the drop rate across `acl_trimmed_set` exceeds a configured threshold, the query refuses with `verification_unavailable` — this trigger is folded into DEC-042's canonical definition of that refusal class (DEC-096)
 - Output-rail `flagged=true` → `policy_blocked` refusal; draft answer is discarded pre-emit; V2 may route to `regenerate` feedback edge (REQ-052) once before refusing
-- `audit_events` captures the full `SafetyVerdict.raw_response` for forensics (DEC-077)
+- `audit_events` captures the full `SafetyVerdict.raw_response` for forensics (DEC-077), **including the per-chunk `retrieval_safety_verdicts` list** from the retrieval-rail scan (DEC-096, added DEC-105, 2026-07-05) — not just the singular `safety_input_verdict`/`safety_output_verdict`; without this, a disputed chunk-drop decision could not be reconstructed from audit
 
 ## 5. Module map (canonical with-ECM MVP path per DEC-053)
 
@@ -225,6 +226,8 @@ Thirteen pre-existing modules plus four new nodes/services introduced in Round 2
 | `safety_output/` | Harmful-content classification on draft answer | After `generate/`, before `verify/` | Llama Guard 3 8B (int4, on the GPU host) |
 | `policy/` | Declarative policy enforcement (category routing, refusal escalation, audit triggers) | Composes with graph state transitions — intercepts node-to-node moves | NeMo Guardrails (CPU/RAM) |
 | `cache/` (Redis / Valkey) | (a) prompt cache, (b) answer cache `(query_hash, ACL_set, model_version)`, (c) ACL cache with TTL (§7B.5), (d) embedding cache | Read in `retrieve/`, `acl/`, `generate/`, `verify/`; write at end of each node | Redis 7.x or Valkey 8.x container (DEC-076) |
+
+**Retrieval-rail scan is not a separate node** *(clarified DEC-096, 2026-07-05 review finding)*: the indirect-injection scan over retrieved chunks (§12.2 point 2, DEC-077) runs **inside `acl/`'s Layer 2 join step**, after PDP trim and before `rerank/` — see §8.1's pipeline pseudocode, which already specified this ordering. It is Llama Prompt Guard 2 batched over `acl_trimmed_set` (never the raw pre-Layer-2 `retrieval_set` — same authorized-data-only principle as DEC-088). This was previously undocumented in the module map, call-direction table, typed state schema, and latency budget below, even though §8.1 already assumed it; those are now aligned to §8.1 rather than introducing a redundant `safety_retrieval/` node.
 
 The base linear sequence remains the happy-path traversal:
 
@@ -260,12 +263,16 @@ The base linear sequence remains the happy-path traversal:
 │  - batch_check_access    │      └──────────┬───────────────┘
 │    via ECMAdapter        │                 │
 │  - get_retention_state   │                 ▼
-│  - circuit breaker       │      ┌──────────────────────────┐
-│    (DEC-063, NFR-016)    │      │  Qdrant + Postgres       │
-│  REQ-036, REQ-037, §7B.4 │      │  (chunks, docs, ACL,     │
-└──────┬───────────────────┘      │   model_versions, prompt │
-       │ authorized chunks         │   templates, audit)      │
-       ▼                          └────────────┬─────────────┘
+│  - retrieval-rail scan   │      ┌──────────────────────────┐
+│    (Llama PG2, batched,  │      │  Qdrant + Postgres       │
+│    post-PDP-trim, §8.1,  │      │  (chunks, docs, ACL,     │
+│    DEC-077/DEC-096)      │      │   model_versions, prompt │
+│  - circuit breaker       │      │   templates, audit)      │
+│    (DEC-063, NFR-016)    │      └────────────┬─────────────┘
+│  REQ-036, REQ-037, §7B.4 │                   ▲
+└──────┬───────────────────┘                   │
+       │ authorized, filtered chunks           │
+       ▼                                       │
 ┌──────────────┐                               ▲
 │  rerank/     │ (TEI bge-reranker-v2-m3)      │
 └──────┬───────┘                               │
@@ -346,12 +353,12 @@ The variant exists for fast-evaluation demos; it is **not** the canonical MVP sh
 |---|---|---|
 | `api/` | All modules; orchestrates the chain `retrieve → acl → rerank → generate → verify → audit → (acl write-back)` | Never persist directly to Qdrant — go through `ingest/` or `admin/` |
 | `retrieve/` | `config/` for adapters, Qdrant client (with Layer 1 filter pushdown per §7B.3) | Never call `generate/`, `acl/`, or `verify/` |
-| `acl/` | `ECMAdapter` (Layer 2 RPC), Postgres `users` / `documents.acl` (LocalAdapter), `cdc/` event handlers | Never call `retrieve/` or `generate/`; never persist directly to Qdrant (`cdc/` owns Qdrant payload mutations) |
+| `acl/` | `ECMAdapter` (Layer 2 RPC), Postgres `users` / `documents.acl` (LocalAdapter), `cdc/` event handlers, Llama Prompt Guard 2 inference service (batched retrieval-rail scan over `acl_trimmed_set`, post-PDP-trim per §8.1/DEC-096) | Never call `retrieve/` or `generate/`; never persist directly to Qdrant (`cdc/` owns Qdrant payload mutations); never run the retrieval-rail scan against the raw pre-Layer-2 `retrieval_set` (DEC-088 principle) |
 | `rerank/` | TEI rerank service | Never call other modules |
 | `generate/` | `config/` for adapters, vLLM client | Never call `verify/`, `retrieve/`, or `audit/` — `api/` orchestrates |
 | `verify/` | `config/` for thresholds, NLI service | Never persist directly to Qdrant or Postgres; returns decision to `api/` |
 | `audit/` | Postgres `audit_events` only | Never read from Qdrant or generation; never decide what to write — `api/` provides the full record |
-| `cdc/` | Qdrant payload mutations + Postgres metadata updates + `ECMAdapter` (for ACL refresh) | Never call `retrieve/`, `generate/`, or `verify/` |
+| `cdc/` | Qdrant payload mutations + Postgres metadata updates + `ECMAdapter` (for ACL refresh) + `cache/` invalidation-only calls (force-refresh the per-user/per-document ACL cache entries on `acl_changed`, per §7B.5 — **added DEC-103, 2026-07-05**) | Never call `retrieve/`, `generate/`, or `verify/`; `cache/` access is invalidation-only — `cdc/` may never read or write business-data cache entries (prompt/answer/embedding cache) |
 | `ingest/` | Unstructured, TEI, Qdrant, Postgres, `ECMAdapter.get_effective_acl()` (Layer 1 enrichment at ingest) | Never call `verify/` |
 | `admin/` | Postgres (documents, ACL) | Never call retrieval/generation directly |
 | `eval/` | All read-only via `api/` HTTP | Never bypass the API surface |
@@ -360,7 +367,7 @@ The variant exists for fast-evaluation demos; it is **not** the canonical MVP sh
 | `safety_input/` | Llama Prompt Guard 2 inference service, `config/` for thresholds | Never call `retrieve/`, `acl/`, `generate/`, or `verify/` — returns a verdict into graph state for `api/`'s `acl/`-join routing (§4.3) |
 | `safety_output/` | Llama Guard 3 inference service, `config/` for thresholds | Never call `verify/`, `generate/`, or `retrieve/` — returns a verdict into graph state; `api/` discards the draft answer pre-emit on `flagged=true` |
 | `policy/` | `config/` for policy rules; intercepts state transitions between nodes (NeMo Guardrails) | Never call model-serving modules (`generate/`, `retrieve/`, `rerank/`) or persist directly to Qdrant/Postgres |
-| `cache/` (Redis/Valkey) | — (passive backing store, not an orchestrated caller) | Only `retrieve/`, `acl/`, `generate/`, `verify/` may read/write it (§5.0); `ingest/`, `admin/`, `cdc/` must not bypass ACL by writing to it directly |
+| `cache/` (Redis/Valkey) | — (passive backing store, not an orchestrated caller) | `retrieve/`, `acl/`, `generate/`, `verify/` may read/write business-data cache entries (§5.0); `cdc/` may **only** issue invalidation/force-refresh calls against ACL cache keys, per §7B.5 (**added DEC-103**) — never business-data entries; `ingest/`, `admin/` must not bypass ACL by writing to it directly |
 
 These rules will be enforced by import discipline + an architecture test in `tests/architecture/` (V2-grade enforcement; **at MVP a minimum-cost import-graph check** parsing Python AST for cross-layer imports will run as a CI step).
 
@@ -385,7 +392,8 @@ class QueryGraphState(BaseModel):
     safety_input_verdict: Optional[SafetyVerdict] = None     # set by safety_input/
     retrieval_set: Optional[list[Chunk]] = None              # set by retrieve/ — RAW, PRE-Layer-2, over-fetched top-K candidate pool. NEVER a valid citation-verification target (DEC-088): may contain chunks the user is not authorized to see.
     acl_trimmed_set: Optional[list[Chunk]] = None            # set by acl/ — Layer 2 JIT-authorized chunks
-    reranked_set: Optional[list[Chunk]] = None               # set by rerank/ — the authorized, reranked chunk set actually passed into generate/'s prompt. THIS is the set verify/.mechanical_fast_path must validate citations against (DEC-088).
+    retrieval_safety_verdicts: Optional[list[SafetyVerdict]] = None  # set by acl/'s retrieval-rail scan step (DEC-096, per §8.1) — one verdict per chunk in acl_trimmed_set, AFTER PDP trim; flagged chunks are removed before rerank/ sees them. Never runs against the raw retrieval_set (DEC-088 authorized-data-only principle).
+    reranked_set: Optional[list[Chunk]] = None               # set by rerank/ — the authorized, reranked, retrieval-rail-filtered chunk set actually passed into generate/'s prompt. THIS is the set verify/.mechanical_fast_path must validate citations against (DEC-088).
     draft_answer: Optional[str] = None                       # set by generate/
     citations: Optional[list[Citation]] = None               # set by generate/
     safety_output_verdict: Optional[SafetyVerdict] = None    # set by safety_output/
@@ -395,6 +403,15 @@ class QueryGraphState(BaseModel):
     # Loop control (V2 mid-flight rewriting per DEC-075 + DEC-082)
     revision_count: int = 0
     failed_claims: Annotated[list[str], operator.add]        # accumulates within a turn; cleared on new turn
+
+    # V2 intent classifier reserved fields (REQ-051, DEC-084 — added DEC-103, 2026-07-05)
+    # Unset/None at MVP (no intent classifier node exists yet); reserved here so V2's
+    # intent-classifier addition is a node addition, not a schema migration, consistent
+    # with this section's "graph-native extension" rationale (§3.2) already applied to
+    # revision_count/failed_claims above.
+    intent_class: Optional[str] = None                       # V2: set by the intent-classifier node
+    nli_performed: Optional[bool] = None                     # V2: audit must record whether nli_slow_path ran (REQ-051 acceptance criterion)
+    policy_waiver_id: Optional[str] = None                    # V2: per-customer SLA waiver id when an intent class downgrades NLI to advisory
 ```
 
 **Reducer semantics**:
@@ -427,9 +444,9 @@ Six core entities. Detailed columns + indexes in `05-data-model.md` (Stage 7 spe
 
 Vector data lives in Qdrant; **one collection per `(corpus_id, embedding_model_version)`** at MVP so blue/green re-embedding (REQ-034 automation V2) creates a new collection without disturbing the live one. Schema is in place from day one per DEC-059; the automation pipeline is V2.
 
-## 7. API direction (defer detail to `06-api-contracts.md`)
+## 7. API direction (full contracts in `06-api-contracts.md` — stub added DEC-107, 2026-07-05)
 
-Three surfaces:
+Four surfaces (**was documented as "three" — corrected 2026-07-05 review finding**: this list had drifted from endpoints already referenced elsewhere in this document, e.g. §5.0's api/ box and §7B.5's ACL cache discipline table, and was never reconciled back here):
 
 ### 7.1 Query API (the hot path)
 - `POST /v1/query` → `{query, conversation_id?}` → `{answer, citations[], refusal_reason?, audit_id, latency_ms}`
@@ -446,8 +463,15 @@ Three surfaces:
 - `GET /v1/admin/audit?from=...&to=...&user_id=...` — paginated audit query
 - `PUT /v1/admin/config/thresholds` — refusal threshold (NFR-010)
 - `GET/PUT /v1/admin/config/models` — model adapter swap (REQ-033, V2)
+- `POST /v1/admin/eval` — trigger a golden-set eval run (REQ-013/REQ-014) *(added — was in §5.0's api/ box, never listed here)*
+- `POST /v1/admin/acl/refresh_user/{user_id}` — force-refresh a user's `effective_principals[]` cache ahead of its TTL *(added — was in §7B.5, never listed here)*
+- `POST /v1/admin/acl/refresh_doc/{doc_id}` — force-refresh a document's Layer 2 PDP cache ahead of its TTL *(added — was in §7B.5, never listed here)*
+- `PUT /v1/admin/config/cdc` — set `cdc_transport_mode` (`webhook` | `poll_only`) and poll interval per REQ-057/DEC-102 *(new, Round 5)*
 
-All endpoints declare JWT bearer or admin API key (NFR-009). OpenAPI 3.x spec auto-generated by FastAPI is the integration contract (REQ-008).
+### 7.4 Operational surface (added — not previously enumerated as an API surface)
+- `GET /ready` — health check gating widget load and `docker compose up` install verification (REQ-011, §9.1); unauthenticated
+
+All authenticated endpoints declare JWT bearer or admin API key (NFR-009); `/ready` is the sole unauthenticated exception. OpenAPI 3.x spec auto-generated by FastAPI is the integration contract (REQ-008). **`06-api-contracts.md` is a stub as of this review** — it enumerates the surfaces above with placeholder request/response schemas; full JSON Schema / OpenAPI detail is a Stage 6 deliverable, not produced by this pass.
 
 ## 7B. Just-In-Time Two-Layer Authorization (ECM/CCM federation)
 
@@ -474,6 +498,8 @@ This is because GroundedDocs's UX surface is embedded inside the ECM's portal / 
 - **No-ECM fast-path variant** (§5A): `LocalAdapter` only; for self-contained demos and customers with no ECM at all; CDC + ECM audit write-back are no-ops
 
 **Procurement risk note (added 2026-07-03, review finding)**: some enterprise network-segmentation policies (common in AU/NZ financial/public-sector targets per DEC-072) separate an "AI workload zone" from the "core content repository zone" specifically to limit what can reach the repository network — which is in tension with requiring an inbound webhook listener reachable from the ECM. This co-location requirement should be raised explicitly and early in customer security reviews, not left implicit; `09-deployment-ops` should document it as a pre-install qualification question, not assume it away.
+
+**Resolution: poll-only mode is a first-class supported topology (DEC-102, 2026-07-05)** — not just an unplanned degradation. For customers whose network segmentation makes an inbound webhook listener impossible, GroundedDocs supports **poll-only mode**: `cdc/` never accepts inbound events; it exclusively calls **out** to the ECM's event/change API on a configurable interval (§7B.5). This inverts the connection direction — GroundedDocs initiates every network call, satisfying "AI zone cannot be reached from the content-repo zone" policies without adding new infrastructure (no event bus; **DEC-034's exclusion of Kafka still holds**) and without requiring the ECM to reach into GroundedDocs's zone at all. See REQ-057 + NFR-032.
 
 ### 7B.1 Principle
 
@@ -531,7 +557,7 @@ Trim step:
 
 ### 7B.5 CDC closure (ECM → RAG)
 
-ECM pushes events to RAG via inbound webhook within the co-located private network (DEC-051 + DEC-055). V2 may add event bus (Kafka / EventGrid / Pub/Sub).
+ECM pushes events to RAG via inbound webhook within the co-located private network (DEC-051 + DEC-055) — **the default transport when network segmentation allows it, but not the only MVP-supported one**: customers whose network policy prohibits an inbound listener use **poll-only mode** instead (DEC-102, admin-selectable per REQ-057, detailed below) — this is available at MVP, not deferred to V2. V2 may additionally add an event bus (Kafka / EventGrid / Pub/Sub) for webhook-topology customers wanting sub-5s latency; poll-only customers stay on the polling interval even in V2 (§7B.0).
 
 | Event | RAG action |
 |---|---|
@@ -544,10 +570,11 @@ ECM pushes events to RAG via inbound webhook within the co-located private netwo
 | `legal_hold_added(doc_id)` | **Freeze** chunks: not deletable, not updatable, not re-indexable until released. **Also invalidates the vLLM KV-cache for any active conversation whose recent-turn context includes this document (DEC-091)** — see §7B.6 |
 | `legal_hold_released(doc_id)` | Unfreeze |
 
-**SLA (revised per DEC-056)**: CDC retention latency is split by transport path:
-- **Webhook path**: ≤ 60 s end-to-end (event delivery → Qdrant payload update / physical delete / freeze)
-- **Re-poll fallback path**: ≤ 30 min when webhook delivery fails; NFR-016 triggers an ops alert so the customer knows the retention SLA has temporarily degraded
-- V2 with event bus targets ≤ 5 s end-to-end
+**SLA (revised per DEC-056, extended per DEC-102)**: CDC retention latency is split by transport path — **two of these are first-class supported topologies, not one primary path plus an unplanned fallback**:
+- **Webhook path** (default when network segmentation allows it): ≤ 60 s end-to-end (event delivery → Qdrant payload update / physical delete / freeze)
+- **Re-poll fallback path**: ≤ 30 min when webhook delivery unexpectedly fails on a webhook-topology install; NFR-016 triggers an ops alert so the customer knows the retention SLA has temporarily degraded
+- **Poll-only mode** *(added DEC-102, 2026-07-05 — a deliberately-selected topology for network-segmented customers per §7B.0, not a failure state)*: `cdc/` runs exclusively as an outbound poller against the ECM's event/change API; no inbound listener is ever opened. Interval is **admin-configurable, default 30 min, recommended 5 min for customers who need better freshness and whose ECM API rate limits allow it** (REQ-057). No ops alert fires for the expected latency in this mode — it is the customer's chosen SLA, not a degradation. Reuses the existing re-poll code path; adds no new infrastructure (no event bus; DEC-034's Kafka exclusion still holds)
+- V2 with event bus targets ≤ 5 s end-to-end (webhook-topology customers only — poll-only customers stay on the interval above even in V2, since the event-bus direction-of-connection problem is the same one poll-only already solves without new infrastructure)
 
 **Idempotency**: each event carries an idempotency key (`event_id` + `source_timestamp`); CDC consumer dedupes within a 7-day window so out-of-order or duplicate deliveries do not corrupt state (RC-T8-01).
 
@@ -576,6 +603,8 @@ Retention is bidirectional and both directions are mandatory:
 - **Hold (legal hold)**: during legal hold, chunks must be **frozen** (immutable + not re-indexable + not deletable). A `legal_hold_added` arriving mid-reindex must abort that chunk's reindex. After release (`legal_hold_released`), normal CDC resumes.
 
 **KV-cache invalidation on legal hold (DEC-091, added 2026-07-03)**: freezing a chunk in Qdrant/Postgres does not by itself remove that chunk's content from a live conversation's vLLM KV-cache — §9.4's cross-turn KV-cache reuse means content from an earlier turn can still influence generation in later turns of the same `conversation_id` even after the source document is frozen mid-conversation. This is a materially higher-stakes case than the generic mid-session ACL-tightening limitation (documented elsewhere as a known limitation), because legal hold implies an active litigation-hold obligation not to further disclose the content. **Requirement**: `legal_hold_added(doc_id)` must trigger a check against active conversations' last-N-turns context (the same window used for server-side history reconstruction, §10.1 / `20-agent-behavior.md` §2.4); any `conversation_id` whose recent-turn context references the frozen document has its KV-cache invalidated, forcing a cold-cache recompute on the next turn.
+
+**Audit requirement (added DEC-106, 2026-07-05 review finding)**: the invalidation action itself — not just the underlying chunk freeze — must be written to `audit_events` (`conversation_id`, triggering `doc_id`, `legal_hold_added` event timestamp, invalidation timestamp). Without this, the system can prove a document was frozen in Qdrant/Postgres but cannot prove the corresponding conversation-level remediation actually ran — the exact evidence a litigation-hold dispute would ask for.
 
 ### 7B.7 Audit dual-write
 
@@ -637,19 +666,29 @@ class ECMAdapter:
     # intent ∈ {"granted", "denied"} per DEC-064 — denied path is also written
     def write_audit_access(user, doc_ids, session_id, intent, retrieved_at, rag_audit_id) -> None
     
-    # CDC (subscription)
+    # CDC — webhook transport (push): registers a handler the ECM (or its webhook
+    # sender) calls into. Only used when cdc_transport_mode = webhook (REQ-057)
     def subscribe_changes(handler) -> Subscription
+    
+    # CDC — poll-only transport (pull, added DEC-108, 2026-07-05): outbound-only,
+    # no inbound listener. cdc/ calls this on the configured interval (NFR-032);
+    # cursor is opaque and adapter-defined (e.g. a change-log sequence number or
+    # timestamp watermark). Only used when cdc_transport_mode = poll_only (REQ-057).
+    # MUST be implemented by every vendor adapter that supports poll-only mode —
+    # `subscribe_changes` alone is not sufficient, since it is push-oriented and
+    # cannot satisfy a customer whose network segmentation forbids an inbound listener
+    def poll_changes(cursor: str | None) -> tuple[list[Event], str]
     
     # V2 roadmap: metadata write-back (e.g. "cited by AI N times" tags)
     # def write_metadata(doc_id, key, value) -> None   # V2 only
 ```
 
-Reference implementations shipped:
+Reference implementations shipped. **`poll_changes()` is required for any adapter used in `cdc_transport_mode = poll_only` installs (DEC-108)** — noted per row where applicable; V2 vendor adapters must implement it before being offered to a poll-only customer, not just `subscribe_changes`:
 
 | Implementation | MVP / V2 | Notes |
 |---|---|---|
-| `LocalAdapter` | MVP | Uses GroundedDocs's own Postgres `users` / `documents.acl` tables; no real ECM. Demo + customers without ECM. |
-| `OIDCAdapter` (identity only) | MVP | Composable: resolves principals from OIDC token. Pairs with `LocalAdapter` for the rest, or with a real ECM adapter. |
+| `LocalAdapter` | MVP | Uses GroundedDocs's own Postgres `users` / `documents.acl` tables; no real ECM. Demo + customers without ECM. CDC is a no-op either transport mode (§5A) — `poll_changes()` not applicable. |
+| `OIDCAdapter` (identity only) | MVP | Composable: resolves principals from OIDC token. Pairs with `LocalAdapter` for the rest, or with a real ECM adapter. Identity-only — no CDC methods. |
 | `MFilesAdapter` | V2 | M-Files REST |
 | `OpenTextAdapter` | V2 | OpenText Content Server REST (despite DEC-018 deprioritizing OpenText prospects, the technical adapter is still useful for the second wave) |
 | `DocumentumAdapter` | V2 | Documentum REST (your research explicitly considers Documentum/OpenText) |
@@ -725,6 +764,7 @@ flowchart TB
 | IdP resolve | < 5 ms hit; ≤ 50 ms miss | +20 ms cold (forced TTL refresh) | Per-user effective_principals cache, 60 s TTL (DEC-076 + NFR-025); Redis-backed |
 | _(sub-budget within parallel row above)_ Qdrant filter + hybrid search top-K | ≤ 250 ms | — | Qdrant HNSW filter pushdown (§7B.3) — runs in parallel with `safety_input/` per DEC-082 |
 | ECM `batch_check_access` + `get_retention_state` combined (1 RPC, inside `acl/` join) | ≤ 200 ms | +150 ms cold (force-refresh PDP, NFR-025) | Per-user-per-doc PDP cache, 30 s TTL; circuit breaker per DEC-063 |
+| **Retrieval-rail scan — Llama Prompt Guard 2, batched over `acl_trimmed_set`** *(added DEC-096, previously missing from this table though §8.1 already assumed it)* | **≤ 80 ms** (runs sequentially inside `acl/`, after PDP trim, before `rerank/` — small 86M-param model, one batched call over ~5-15 authorized chunks) | **+30 ms cold** | NFR-022 per-rail budget; same model instance as `safety_input/` |
 | Rerank | ≤ 150 ms (achievable with the **ONNX Runtime backend, MVP default per DEC-093** — the previously-documented TEI default backend at 150-200 ms individually risked exceeding this line item on the simplest install path; DEC-093 closes that gap by making ONNX the shipped default rather than an opt-in tuning step) | +50 ms cold | Reranker batching when concurrent queries align |
 | **Prompt assembly + KV cache lookup** | ≤ 30 ms | +100 ms cold (no Redis prompt-cache hit) | Prompt-cache for system prompts + per-customer template (shared across turns); Redis-backed (DEC-076) |
 | Generate | ≤ 5.5 s warm / 6.5 s cold | +1,000 ms cold (no KV-cache hit) | KV-cache reuse across turns of the same `conversation_id` |
@@ -733,8 +773,8 @@ flowchart TB
 | **`policy/` (orchestration rail) — NeMo Guardrails** | **≤ 30 ms additive** | **+0 ms (CPU/RAM)** | **NFR-022 per-rail budget; rule evaluation in-process** |
 | audit/ sync write | ≤ 50 ms | — | Write to local Postgres only; ECM write-back is async (off-budget) |
 | API serialization + network overhead | ≤ 100 ms | — | — |
-| **Total p95 (warm-cache, Round 3 DEC-082)** | **≤ 7,160 ms ≤ 8 s NFR-005** | — | Headroom ~840 ms for GC pauses and queueing (improved from Round 2's ~690 ms via parallel `safety_input ∥ retrieve`) |
-| **Total p95 (cold-cache lower bound)** | — | **≤ 7,860 ms — at the NFR-005 ceiling, no headroom** | First query of a session / after cache cold restart |
+| **Total p95 (warm-cache, DEC-096 revision)** | **≤ 7,240 ms ≤ 8 s NFR-005** | — | Headroom ~760 ms for GC pauses and queueing (was ~840 ms before the retrieval-rail scan line item was added — the scan was always in scope per §8.1, just previously unbudgeted) |
+| **Total p95 (cold-cache lower bound)** | — | **≤ 7,890 ms — 110 ms headroom, thinner than before; flagged as a risk to revisit if retrieval-rail scan cost grows with chunk count** | First query of a session / after cache cold restart |
 
 **Circuit-breaker behavior (DEC-063)**: if ECM PDP exceeds the configured threshold (default 500 ms) repeatedly, the breaker trips and queries return `refusal_reason = verification_unavailable` (5-class taxonomy per DEC-042). Silent skip is forbidden because it would re-introduce the stale-ACL leak.
 
@@ -813,8 +853,11 @@ verify/.nli_slow_path(answer, citations):                              ← DEC-0
 verify/.refusal_decision():
         if any of:
           - retrieval_top1_score < retrieval_threshold
-          - mechanical fail rate > X%
-          - NLI fail rate > Y%
+          - mechanical fail rate > 0% (hardcoded, not tunable — NFR-004; already
+            enforced by the mechanical_fast_path early-exit above, restated here
+            defensively — never a config knob, unlike the NLI fail rate below)
+            [corrected 2026-07-05 review finding, was "> X%", falsely implying tunability]
+          - NLI fail rate > Y% (tunable, admin config, initial Y=30% per §8.5)
           - safety_input or safety_output rail flagged
           - feedback iteration cap exceeded (V2)
         → return REFUSAL (no answer leaves api/)
@@ -927,6 +970,8 @@ services:
 
 Volumes: `./models/`, `./qdrant/`, `./pg/` mounted on host disk. Network: internal bridge; only `api` and `widget` expose ports. `docker compose up` to a working `/ready` 200 in ≤ 30 minutes (REQ-011).
 
+**docker-compose vs Kubernetes (decided explicitly, DEC-101, 2026-07-05 — was previously an implicit assumption)**: docker-compose remains the MVP orchestration choice; Kubernetes is **not** adopted at MVP. The performance model (§9.4 concurrency, §7B.12 latency) is bounded by single-GPU compute/VRAM, not by container orchestration — K8s does not make one GPU faster. K8s's actual value (multi-node scheduling, cross-host resilience) matches **V3 multi-host (REQ-026)**, which is explicitly out of MVP scope. Adopting K8s now would also work against REQ-011's ≤30-minute install target and the DEC-021/DEC-068 low-cost, low-headcount-deliverable positioning — customer IT teams (AU/NZ public sector/finance per DEC-072) generally have less operational friction reading a docker-compose file than operating a K8s cluster. **Revisit trigger**: if/when REQ-026 (V3 multi-host) is scheduled, K8s (or a simpler multi-host tool) becomes the natural point to introduce orchestration — not before.
+
 ### 9.2 Dev rig — RunPod template (DEC-021)
 
 Same docker-compose image, mounted on a RunPod Network Volume so the model cache survives pod restarts. Monthly budget target ≤ ¥200 (DEC-021).
@@ -967,9 +1012,9 @@ Single-GPU vLLM + co-located TEI + NLI + 2 safety-rail models on a 24 GB tier ca
   - Redis-backed (DEC-076 new): answer cache `(query_hash, ACL_set, model_version)` with 10-min TTL; ACL caches per §7B.5; embedding cache for repeated chunk-fetches
   - Cache invalidation: answer cache invalidated on `acl_changed`, `version_added`, model_version rotation; ACL cache per §7B.5 force-refresh rules
   - **Caveat (added 2026-07-03, review finding)**: the answer cache is an exact-match cache keyed on `(query_hash, ACL_set, model_version)`. It contributes little during genuinely novel Q&A (e.g. vendor evaluators testing the system with unique questions), where hit rate approaches 0%. The 5-8 in-flight warm-cache target is realistically driven by the prompt-cache and ACL-cache components (which do not require query repetition), not the answer cache — demo material should not imply that novel-question workloads alone reach the 5-8 figure through caching
-  - **Admission control gap (added 2026-07-03, review finding)**: see §4.2.2's admission-control caveat — the current eviction policy (evict Llama Prompt Guard 2, ~1.5 GB) does not meaningfully offset KV-cache growth under real multi-conversation concurrency, and no mechanism currently ties new-query admission to measured VRAM headroom. Until `09-deployment-ops` specifies one, the 5-8 figure should be treated as a target to validate during the Stage 7 hardware-rig rehearsal, not a guarantee
+  - **Admission control gap, now tracked as NFR-030 (DEC-098, 2026-07-05)** — previously an untracked prose caveat: see §4.2.2's admission-control caveat — the current eviction policy (evict Llama Prompt Guard 2, ~1.5 GB) does not meaningfully offset KV-cache growth under real multi-conversation concurrency, and no mechanism currently ties new-query admission to measured VRAM headroom. Until `09-deployment-ops` specifies one, the 5-8 figure should be treated as a target to validate during the Stage 7 hardware-rig rehearsal, not a guarantee
 
-**Burst / cold-cache demo-day scenario (added 2026-07-03, review finding)**: the single most likely real-world failure mode is not steady-state concurrency but a **burst of near-simultaneous cold-cache queries** — e.g. a room of vendor evaluators each asking their first question within seconds of each other after a live walkthrough, all cold-cache (no prior turn, no cache hit). At the `§7B.12` cold-cache lower bound (≤ 7,860 ms, effectively no headroom under NFR-005's 8 s cap), a burst of N simultaneous cold requests queues behind the single-GPU serving path and most will exceed the 8 s SLO even though the system is not "broken." `09-deployment-ops` and demo-facilitation guidance must address this explicitly: (a) surface `queue_depth` to the widget UI as a visible "queued" state rather than a silent stall, and (b) advise demo facilitators to stagger the first round of questions rather than inviting simultaneous submission.
+**Burst / cold-cache demo-day scenario, now tracked as NFR-031 (DEC-098, 2026-07-05)** — previously an untracked prose caveat: the single most likely real-world failure mode is not steady-state concurrency but a **burst of near-simultaneous cold-cache queries** — e.g. a room of vendor evaluators each asking their first question within seconds of each other after a live walkthrough, all cold-cache (no prior turn, no cache hit). At the `§7B.12` cold-cache lower bound (≤ 7,890 ms per DEC-097, ~110 ms headroom under NFR-005's 8 s cap), a burst of N simultaneous cold requests queues behind the single-GPU serving path and most will exceed the 8 s SLO even though the system is not "broken." `09-deployment-ops` and demo-facilitation guidance must address this explicitly: (a) surface `queue_depth` to the widget UI as a visible "queued" state rather than a silent stall, and (b) advise demo facilitators to stagger the first round of questions rather than inviting simultaneous submission.
 
 ### 9.5 Offline model bundle (DEC-067 + RC-T1-05)
 
@@ -1038,7 +1083,7 @@ Five refusal types, all returned as **HTTP 200** with a typed `refusal_reason` f
 | `low_grounding` | NLI fail rate or mechanical fail rate exceeds threshold | "I can't confidently answer this from your documents." |
 | `access_denied` | Layer 2 ECM live-trim removed the last grounded chunk (user lacks ECM permission) | "You do not have access to the documents that would answer this." (in `transparent` mode) |
 | `policy_blocked` | Category-based block list (V2 route to review queue) | "This question is routed for human review." |
-| `verification_unavailable` | NLI service / ECM PDP circuit breaker (DEC-063) tripped | "Verification is temporarily unavailable; please try again shortly." |
+| `verification_unavailable` | NLI service / ECM PDP circuit breaker (DEC-063) tripped; **or** retrieval-rail (`acl/`, §8.1) flags too high a fraction of `acl_trimmed_set` (DEC-096) | "Verification is temporarily unavailable; please try again shortly." |
 
 **`acl_denial_mode` config** (DEC-042 + DEC-069, both modes first-class in MVP):
 

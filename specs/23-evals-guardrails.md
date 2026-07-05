@@ -52,6 +52,7 @@ Plus four product-specific metrics (RAGAS does not cover):
 | No-answer (refusal expected) | +20 | 30 | More refusal-triggering categories: explicitly-out-of-corpus, retrieval-empty, deliberately-ambiguous |
 | **Layered-rail trigger prompts (new under DEC-077)** | **+15** | **15** | Prompts that should trigger Llama Prompt Guard 2 / Llama Guard 3 — system must refuse with `policy_blocked` |
 | **Parallel-edge join-correctness prompts (Round 3, DEC-082)** | **+10** | **10** | Prompts that flag at `safety_input/` while a parallel `retrieve/` is in-flight; goldset verifies the `acl/` join correctly discards the retrieval result and routes to `policy_blocked`; trace inspection confirms the parallel-span structure under OTEL GenAI conventions (NFR-026 + NFR-029) |
+| **Retrieval-rail refusal prompts (added DEC-096/DEC-104, 2026-07-05 review finding)** | **+5** | **5** | Corpus seeded with poisoned-content chunks designed to trigger `acl/`'s retrieval-rail scan (post-PDP-trim, per §8.1) on a high enough fraction of the authorized chunk set. Goldset verifies this is distinct from the `safety_input/` query-level case above: refusal class must be **`verification_unavailable`**, not `policy_blocked`; trace shows the retrieval-rail scan ran inside `acl/` (after the PDP RPC, before `rerank/`), and that flagged individual chunks were dropped rather than the whole query being blocked pre-retrieval |
 | **Mechanical-fast-path early-exit prompts (Round 3, DEC-082; target set corrected by DEC-088)** | **+5** | **5** | Prompts where the answer cites a chunk_id NOT in the **`reranked_set`** (the Layer-2-authorized set actually shown to `generate/` — per DEC-088, not the raw pre-authorization `retrieval_set`) — `verify/.mechanical_fast_path` must early-exit to `low_grounding` refusal **without paying the NLI cost**; trace shows `nli_slow_path` span absent. **Adversarial variant (added DEC-088)**: at least one prompt constructs a citation to a chunk_id present in `retrieval_set` but absent from `reranked_set` (i.e. removed by Layer 2 ACL trim) — goldset asserts this is rejected, not silently accepted |
 | **SafetyRailAdapter swap-regression prompts (Round 3, REQ-050, DEC-082)** | **+10** | **10** | The same 10 prompts are run twice: once with the default `LlamaGuard3AWQAdapter`; once with a stubbed swap adapter (`StubFalseyAdapter` always returning `flagged=false`) and once with `StubFlaggyAdapter` always returning `flagged=true`. Goldset verifies (a) protocol contract holds, (b) verdict-to-refusal mapping is consistent, (c) no code change required between adapters. **Note (DEC-092)**: these prompts validate protocol/mapping correctness, not detection-accuracy parity — a quantization or model change to a safety-rail adapter additionally requires the separate red-team hazard-detection accuracy check described below, not just this swap-regression set |
 | **Safety-rail quantization/adapter-change accuracy check (new, DEC-092)** | out-of-goldset | — | Before any safety-rail model quantization or default-adapter change ships (e.g. DEC-082's int4 → int4 AWQ Llama Guard 3 switch), run a documented before/after hazard-detection F1/recall comparison on a red-team test set (e.g. a HarmBench-derived subset), separate from the RAGAS golden set. Result recorded in `09-deployment-ops` or this file before the change ships as MVP default |
@@ -153,11 +154,11 @@ This is **forensics** for LCC service (DEC-028 Tier 3 migration evidence), for h
 | Model upgrade (LCC Tier 3) | Re-baseline against both default and customer golden set; promote new thresholds atomically with model swap |
 | Quarterly LCC review | Sample 50 random production answers, manual-grade hallucination rate, retune refusal threshold if hallucination rate drift > 0.5% |
 
-## 6. Customer onboarding runbook (per RC-T6-01)
+## 7. Customer onboarding runbook (per RC-T6-01) *(renumbered from duplicate "§6" — 2026-07-05 review finding, DEC-099)*
 
 When a customer corpus drives refusal rate above ~30% on first install — a foreseeable scenario per D7-15 in the Stage 5 review — the diagnostic + tuning steps below are the LCC service playbook. Order matters: cheap diagnostics first.
 
-### 6.1 Step-by-step diagnosis
+### 7.1 Step-by-step diagnosis
 
 1. **Run the golden set on the customer corpus** — if refusal rate is comparably high on the standard golden set, the issue is environmental (model serving / config). If only the customer corpus is high, continue.
 2. **Inspect the failed-question detail report** — group failures by trigger (no_recall vs low_grounding vs verification_unavailable). Each trigger has a different fix.
@@ -165,24 +166,24 @@ When a customer corpus drives refusal rate above ~30% on first install — a for
 4. **For `low_grounding` cluster** — sample failed pairs and read the NLI scores. If most scores are < 0.5 by a small margin (0.3-0.5), the threshold may be miscalibrated. If scores are < 0.2, the retrieval brought back irrelevant chunks (a precision problem, not NLI).
 5. **For `verification_unavailable` cluster** — check ECM PDP health metric and NLI service health metric. This is typically an ops issue, not a tuning issue.
 
-### 6.2 Tuning levers (in order of try-first)
+### 7.2 Tuning levers (in order of try-first)
 
 | Lever | When to try | Risk |
 |---|---|---|
 | Lower NLI threshold from 0.5 → 0.4 | `low_grounding` cluster has many borderline cases | Hallucination rate may rise; re-run hallucination sample |
-| Increase top-K from 10 → 20 | `no_recall` cluster with corpus that does contain the answer | Latency rises; verify NFR-005 still holds |
+| Increase retrieval top-K above the documented default of 50 (NFR-027, `04-architecture.md` §7B.3) — e.g. to 75 or 100 *(corrected 2026-07-05 review finding, was "10 → 20", inconsistent with the documented default)* | `no_recall` cluster with corpus that does contain the answer | Latency rises (rerank + generate both scale with candidate count); verify NFR-005 still holds |
 | Reduce chunk size from 1024 → 768 tokens | Citations land but at coarse granularity; precision low | Re-embedding required; downtime per REQ-034 |
 | Add an authority signal (REQ-021 V2) | Multiple authoritative + draft docs compete in retrieval | V2 work |
 | Customer-specific golden set (REQ-023 V2) | Standard thresholds do not fit customer language style | V2 LCC engagement |
 | Customer-LoRA fine-tuning (REQ-030 V3) | Standard model misses customer vocabulary entirely | V3 LCC Tier 4 |
 
-### 6.3 When to escalate
+### 7.3 When to escalate
 
 - Refusal rate > 50% after the cheap tuning steps → LCC Tier 2 advisory (DEC-028) → may need REQ-023 customer golden set
 - Hallucination rate > 5% after threshold lowering → revert thresholds; escalate to architecture review (NLI model swap may be needed)
 - Customer requests a refusal-rate guarantee (e.g. "≤ 10%") → policy decision: GroundedDocs SLOs are process SLOs (citation, latency), not outcome SLOs (refusal rate, hallucination); decline and explain per RISK-005
 
-## 7. Open questions for Stage 5 review
+## 8. Open questions for Stage 5 review
 
 | Q | Topic |
 |---|---|
@@ -194,7 +195,7 @@ When a customer corpus drives refusal rate above ~30% on first install — a for
 
 Answered in Stage 5 architecture review memos.
 
-## 8. Cross-references
+## 9. Cross-references
 
 | Concern | Where |
 |---|---|

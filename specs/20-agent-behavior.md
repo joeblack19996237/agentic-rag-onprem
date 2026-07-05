@@ -172,7 +172,7 @@ TruLens integrates as a tracing layer over the same pipeline. Drift detection tr
 | Failure | Behavior | Refusal class |
 |---|---|---|
 | **`safety_input/` (Llama Prompt Guard 2) flags inbound query as prompt-injection / jailbreak (DEC-077)** | **Return refusal; rail verdict captured in audit; no generation attempt** | **`policy_blocked`** |
-| **`safety_input/` retrieval-rail flags too many retrieved chunks as poisoned content (DEC-077)** | **Return refusal; rail verdict captured in audit; do not pass to `generate/`** | **`verification_unavailable`** |
+| **`acl/`'s retrieval-rail scan (Llama Prompt Guard 2, batched, runs after PDP trim per §8.1) flags too many retrieved chunks as poisoned content (DEC-077, corrected attribution DEC-096)** | **Flagged chunks dropped before `rerank/`; if drop rate exceeds threshold, return refusal; rail verdicts captured in audit** | **`verification_unavailable`** |
 | Retrieval returns empty (or top-1 score below floor) | Return refusal; no generation attempt; offer up to 3 neighboring docs from post-Layer-2 set (REQ-006a) | `no_recall` |
 | Layer 2 trim removed the last grounded chunk (user lacks ECM permission) | Return refusal; user-facing text depends on `acl_denial_mode` (transparent shows as-is; opaque masks as `no_recall`); audit always records actual | `access_denied` |
 | **`safety_output/` (Llama Guard 3 8B) flags draft answer as harmful (DEC-077)** | **Return refusal; rail verdict captured in audit; answer not emitted; under V2 may trigger `regenerate` feedback edge once before refusing** | **`policy_blocked`** |
@@ -180,6 +180,8 @@ TruLens integrates as a tracing layer over the same pipeline. Drift detection tr
 | Generation timeout | Return 504 with audit row written; client may retry with same conversation_id | (HTTP error — not a refusal class) |
 | NLI service unreachable OR ECM PDP circuit breaker tripped (DEC-063) | Return refusal; system does not silently skip verification | `verification_unavailable` |
 | vLLM unhealthy | Return 503; health check governs widget loading | (HTTP error — not a refusal class) |
+| **TEI embedding service unreachable (added 2026-07-05 review finding)** — `retrieve/`'s hybrid search cannot embed the query | Return 503; health check governs widget loading, same as vLLM row | (HTTP error — not a refusal class) |
+| **TEI reranker service unreachable (added 2026-07-05 review finding)** — `rerank/` cannot score the authorized chunk set | Return 503; health check governs widget loading, same as vLLM row | (HTTP error — not a refusal class) |
 | Citation contains a chunk_id not in `reranked_set` (`mechanical_fast_path` fails, DEC-082 + DEC-088 — checked against the Layer-2-authorized, reranked set, not the raw pre-authorization retrieval pool) | **Early-exit short-circuit**: skip `nli_slow_path` entirely (saves ~600 ms); strip citations + return refusal without NLI cost | `low_grounding` |
 | All mechanical checks pass but NLI fail rate exceeds threshold (`nli_slow_path`) | Grey out non-entailed sentences OR return refusal if grounding too weak; V2 may route via feedback edge to `generate/` (REQ-020, REQ-052 streaming) | `low_grounding` |
 | **Mid-flight rewriting feedback iteration cap exceeded (V2, DEC-075 + RC-R2-T8-04)** | **Return refusal after N=2 rewrite attempts; audit records iteration count + failed-claim list** | **`low_grounding`** |
