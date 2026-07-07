@@ -1,7 +1,7 @@
 # 23 — Evals and Guardrails
 
 > Stage 4 deliverable (companion to `04-architecture.md` §11 and `20-agent-behavior.md`).
-> MVP = RAGAS offline runner + hand-curated 50-question golden set + hardcoded mechanical guardrails.
+> MVP = RAGAS offline runner + 150-200 prompt full golden ring (50-prompt smoke subset preserved as the CI fast-feedback inner ring, per DEC-078) + hardcoded mechanical guardrails. **Corrected 2026-07-06, Stage 7 final sweep — this line predated DEC-078's Round 2 expansion and was missed by every prior reconciliation pass; see §2.2 for the full two-ring detail, which was already correct.**
 > V2 = customer-specific golden set + A/B + DeepEval CI gate.
 > V3 = TruLens production observability + drift monitor.
 
@@ -33,7 +33,7 @@ Plus four product-specific metrics (RAGAS does not cover):
 
 ### 2.2 Golden set composition (REQ-014, revised under DEC-052; **expanded Round 2 per DEC-078**)
 
-> **Round 2 supersede (DEC-078, 2026-06-29)**: Golden set lifted from 50 prompts to **150-200 prompts**, with the original 50-prompt set preserved as the **CI fast-feedback smoke subset**. 2026 benchmark default is 100-300 prompts (`93-stage5r2-benchmark.md` §Topic 5).
+> **Round 2 supersede (DEC-078, 2026-06-29)**: Golden set lifted from 50 prompts to **150-200 prompts**, with the original 50-prompt set preserved as the **CI fast-feedback smoke subset**. 2026 benchmark default is 100-300 prompts (`92a-stage5r2-benchmark.md` §Topic 5).
 
 **Two rings**:
 
@@ -60,7 +60,7 @@ Plus four product-specific metrics (RAGAS does not cover):
 
 Sample corpus = English CCM-style synthetic documents (insurance letter templates, claims-FAQ docs, billing-notice templates) representative of AU/NZ market vocabulary per DEC-072. Smoke set drafted with REQ-014; expansion drafted under DEC-078 (estimated ~2-3 weeks manual curation at the DEC-073 team envelope).
 
-**Sampling rates for production traces** (per `93-stage5r2-benchmark.md` §Topic 5 default): 5-10% of production queries are sampled into the trace store; weekly human review covers 50-100 sampled traces. Human-reviewed traces with disagreements promote into the customer-specific golden set (REQ-023 V2).
+**Sampling rates for production traces** (per `92a-stage5r2-benchmark.md` §Topic 5 default): 5-10% of production queries are sampled into the trace store; weekly human review covers 50-100 sampled traces. Human-reviewed traces with disagreements promote into the customer-specific golden set (REQ-023 V2).
 
 ### 2.3 Runner
 
@@ -102,10 +102,12 @@ If MVP threshold fails:
 
 | Mechanism | Implementation |
 |---|---|
-| Mechanical citation check (DEC-005, REQ-005a) | Hardcoded in `verify/`; non-tunable; hard gate |
-| NLI span check (DEC-037, REQ-005b) | `verify/`; tunable threshold (NFR-010 default 0.5) |
+| Mechanical citation check (DEC-005, REQ-005(a) — the mechanical-check half of REQ-005's own two-part acceptance criterion) | Hardcoded in `verify/`; non-tunable; hard gate |
+| NLI span check (DEC-037, REQ-005(b) — the NLI-check half of REQ-005's own two-part acceptance criterion) | `verify/`; tunable threshold (NFR-010 default 0.5) |
 | Refusal-on-low-grounding (REQ-006) | `verify/`; admin-configurable thresholds via `/v1/admin/config/thresholds` |
 | No tool calls in MVP | Architectural — `generate/` has no tool surface |
+
+**Note (corrected 2026-07-06, Stage 8 audit finding)**: `REQ-005(a)`/`REQ-005(b)` above are not independently minted requirement IDs — they are shorthand for the two sub-parts already described in prose inside `02-requirements.md`'s REQ-005 acceptance criterion ("verified to (a) reference a chunk... and (b) pass an NLI entailment check"). This table previously cited them as `REQ-005a`/`REQ-005b`, which read as if they were separate minted IDs; no such IDs exist in `02-requirements.md`. The parenthetical `(a)`/`(b)` notation here is corrected to unambiguously point back at REQ-005's own lettered sub-clauses rather than implying separate sub-requirement identifiers.
 
 ### 3.3 Context fingerprint in audit (REQ-035 — schema portion promoted to MVP per DEC-060, extended per DEC-089)
 

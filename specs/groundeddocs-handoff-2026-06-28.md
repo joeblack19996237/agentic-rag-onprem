@@ -175,7 +175,7 @@ Pulled from `C:\Users\OEM\.claude\CLAUDE.md` + observed user preferences in this
 
 ## 11. Last user message before this handoff
 
-> "Q-I2: a / Q-I3: a / Q-I4: a / Q-I5: a. 文档更新完后不要进 Stage 5, 而是参考 /handoff skill 写一份 handoff 文档"
+> "Q-I2: a / Q-I3: a / Q-I4: a / Q-I5: a. After the documentation is updated, do not proceed to Stage 5. Instead, refer to the /handoff skill to create a handoff document."
 
 Translation: confirmed all four (a) answers; **do not enter Stage 5**; write handoff doc per /handoff skill.
 

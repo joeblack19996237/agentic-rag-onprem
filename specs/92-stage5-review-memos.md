@@ -511,7 +511,7 @@ Phase 3 consistency sweep complete. Status of every Required Change (RC) listed 
 | RC-T2-07 (api-centric orchestration) | **FIXED** | 04-architecture §5 + §5.1 |
 | RC-T2-08 (Comparison +2 scoring dimensions) | **FIXED** | DEC-057 + 04-architecture §3.1 |
 | RC-T2-09 (OTLP exporter note) | **FIXED** | 04-architecture §12.3 |
-| RC-T3-01 (Measured VRAM annotation) | **DEFERRED (Stage 7)** | 04-architecture §4.2 carries "Measured VRAM occupancy will be added in Stage 7" pointer; actual measurement requires the cloud-rig validation run which is a Stage 7 deliverable |
+| RC-T3-01 (Measured VRAM annotation) | **APPLIED (Stage 7)** | Applied in `09-deployment-ops.md` "Hardware Compatibility Matrix — Measured VRAM Occupancy" — the validation *methodology* and results-recording convention are now specified; the actual measured numbers remain pending a real cloud-rig run (the spec explicitly does not fabricate a precise measured figure it hasn't run — see that section's own note) |
 | RC-T3-02 (audit_events conversation_id + fingerprint) | **FIXED** | 02-requirements REQ-007 + 04-architecture §6 + 20-agent §2.4 |
 | RC-T3-03 (Dev budget raised) | **FIXED** | DEC-068 + confirmed-context Drift Log |
 | RC-T3-04 (REQ-006a wording) | **FIXED** | 02-requirements REQ-006a + 04-architecture §12.1 |
@@ -523,7 +523,7 @@ Phase 3 consistency sweep complete. Status of every Required Change (RC) listed 
 | RC-T3-10 (write_metadata V2 roadmap) | **FIXED** | 04-architecture §7B.10 contract comment |
 | RC-T3-11 (map_external_user) | **FIXED** | 04-architecture §7B.10 |
 | RC-T4-01 (Bulk CDC batching NFR) | **DEFERRED (V2)** | Captured in review file D5-07; tracked for V2 NFR introduction once V2 ECM adapter work begins |
-| RC-T4-02 (Encryption-at-rest) | **DEFERRED (Stage 7 in 09-deployment-ops)** | Tracked in review D5-08; will land when Stage 7 spec-writer produces 09-deployment-ops |
+| RC-T4-02 (Encryption-at-rest) | **APPLIED (Stage 7)** | Applied in `09-deployment-ops.md` "Runbook: Encryption-at-Rest" — MVP posture (customer-managed host-level disk encryption) stated explicitly, with rationale for why this closes D5-08's concern and an explicit non-goal note for application-layer field encryption |
 | RC-T4-03 (Threat model + widget security + rate limit) | **FIXED** | 04-architecture §12.5 + 02-requirements NFR-017/NFR-018 |
 | RC-T4-04 (Co-location assumption DEC) | **FIXED** | DEC-055 + 04-architecture §7B.0 |
 | RC-T4-05 (Fingerprint schema MVP) | **FIXED** | DEC-060 + 02-requirements REQ-035 + 23-evals §3.3 |
@@ -531,8 +531,8 @@ Phase 3 consistency sweep complete. Status of every Required Change (RC) listed 
 | RC-T4-07 (Audit append-only vs GDPR) | **FIXED** | DEC-070 + confirmed-context Drift Log |
 | RC-T5-01 (Concurrency cap NFR) | **FIXED** | DEC-066 + 02-requirements NFR-005 (concurrency qualifier) + 04-architecture §9.4 |
 | RC-T6-01 (Customer onboarding runbook) | **FIXED** | 23-evals §6 |
-| RC-T6-02 (Driver matrix / Docker version / ingest resume) | **DEFERRED (Stage 7 in 09-deployment-ops)** | Implementation-phase edge cases (D7-01..07) tracked for 09-deployment-ops |
-| RC-T8-01 (CDC idempotency / parser tolerance / known limits) | **PARTIALLY FIXED** | CDC idempotency added to 04-architecture §7B.5; parser tolerance / idempotency-key client retry / known-limitation annotations remain partially OPEN for Stage 7 spec-writer detail |
+| RC-T6-02 (Driver matrix / Docker version / ingest resume) | **APPLIED (Stage 7)** | Applied in `09-deployment-ops.md` "Driver Matrix and Docker Version" (NVIDIA driver/CUDA/Docker/docker-compose/host-OS version table + pre-install verification script) and "Ingest Resume Mechanics" (checkpoint boundary + idempotency + operator-visible resume state); implementation-level task breakdown remains for `10-build-plan.md` (Phase 2) |
+| RC-T8-01 (CDC idempotency / parser tolerance / known limits) | **FULLY APPLIED (Stage 7 Phase 1+2, 2026-07-06)** | CDC idempotency fixed in `04-architecture.md` §7B.5 (Round 1). Phase 1 applied the idempotency-key client-retry pattern context in `06-api-contracts.md`. **Phase 2 closes the remainder**: `verify/` parser strict-mode behavior specified in `11-test-plan.md`'s "`verify/` Parser Strict-Mode" section (with TEST-021/TEST-022), and a consolidated known-limitations appendix in the same file's "Known Limitations Appendix" section |
 | RC-T8-02 (AU + NZ first-wave + RISK-019..021) | **FIXED** | DEC-072 + confirmed-context Drift Log + 01-product-brief §2 / §8 / §10 |
 
 ### Phase 3 sweep results
@@ -556,11 +556,13 @@ Phase 3 consistency sweep complete. Status of every Required Change (RC) listed 
 
 ### Open follow-ups (post-MVP)
 
-- RC-T3-01 (measured VRAM) — Stage 7 deliverable; requires cloud-rig validation run
-- RC-T4-01 (bulk CDC batching NFR) — V2; tracked in review file D5-07
-- RC-T4-02 (encryption-at-rest option) — Stage 7 deliverable in 09-deployment-ops
-- RC-T6-02 (driver matrix, Docker version, ingest resume) — Stage 7 deliverable in 09-deployment-ops
-- RC-T8-01 partial — CDC idempotency landed; client idempotency-key retry pattern + verify/ parser strict-mode + known-limitation annotations remain for Stage 7
+**Updated 2026-07-06 (Stage 7 Phase 2, final)** — every Round 1 RC-T\* and Round 2 RC-R2-\* row is now either **FIXED** (landed during Rounds 1-5's own in-stage application) or **APPLIED** (landed during this Stage 7 spec-generation pass), with exactly one row correctly and deliberately still deferred:
+
+- **RC-T4-01 (bulk CDC batching NFR)** — the sole remaining open item, and correctly so: it is explicitly V2-scoped (tracked for V2 NFR introduction once V2 ECM adapter work begins), not an MVP scope item, and no Stage 7 action was warranted for it
+- **RC-T3-01 (measured VRAM)** — the spec-writing half (validation methodology + results-recording convention) is APPLIED in `09-deployment-ops.md`; the remaining execution half (an actual cloud-rig run producing real measured numbers) is `10-build-plan.md` TASK-032 — a build task, not a further spec-writing gap
+- All other Round 1 and Round 2 RC items: **FIXED or APPLIED, none open**
+
+This is the final state of the Pre-Audit RC list going into Stage 8 (`spec-quality-auditor`).
 
 **Round 1 verdict (as of 2026-06-28)**: No CRITICAL or HIGH-severity findings remained OPEN. Spec baseline was declared ready for Stage 6.
 
@@ -577,7 +579,7 @@ Round 1 closed mechanical inconsistencies but did not benchmark the spec against
 1. **Gap 1 — Concurrency / Redis trade-off**: DEC-034 (no Redis in MVP) was made before DEC-066 (≤2 in-flight cap) forced the concurrency ceiling. The trade-off "accept ≤2 cap" vs "introduce Redis to lift cap" was never explicitly compared in T2 or T5 memos.
 2. **Gap 2 — Mid-flight rewriting architecture**: `04-architecture.md §3.2 #2` cites *"frameworks resist mid-flight rewriting"* as a build-from-scratch justification, but the architecture never describes **how** mid-flight rewriting (REQ-020) is implemented. The pipeline (§5 + §8.1) is strictly linear with `verify/` as a single node and no feedback edge.
 
-Round 2 baseline: **2026 RAG senior-architect mature choices** documented in `93-stage5r2-benchmark.md` (95 sources, 22 high / 55 medium / 10 low confidence).
+Round 2 baseline: **2026 RAG senior-architect mature choices** documented in `92a-stage5r2-benchmark.md` (95 sources, 22 high / 55 medium / 10 low confidence).
 
 Planning envelope: **2-3 team / 180 days** (DEC-073), with solo-fallback clause. Policy: **MVP pragmatic / V2+ strict** on best-practice alignment (user choice Q2=c on 2026-06-29).
 
@@ -602,7 +604,7 @@ Severity rollup: **1 Critical** (R2-HL-01), **4 High** (R2-T4-02, R2-T4-03, R2-T
 
 #### R2-HL-01 [Critical] DEC-032 §3.2 rationale #2 is outdated against 2026 senior-architect default
 
-**Evidence**: `93-stage5r2-benchmark.md` Gap 2 (`high` confidence) — LangGraph (32k stars, 34.5M monthly downloads, named adopters Klarna / Uber / LinkedIn / AppFolio) and LlamaIndex Workflows 1.0 are **explicitly designed for mid-flight critique-rewrite loops**. Industry signal: "Over 70% of production agents adopted some form of graph structure (DAG or state machine), not simple linear Chain" ([Reactify, LangGraph in 2026](https://www.reactify-solutions.com/articles/langgraph-production-agents-2026); `medium`). Self-RAG and CRAG (both ICLR 2024) describe the academic pattern; LangGraph / Workflows are the production implementation vehicles. Streaming/token-level interception is research-grade, not production default.
+**Evidence**: `92a-stage5r2-benchmark.md` Gap 2 (`high` confidence) — LangGraph (32k stars, 34.5M monthly downloads, named adopters Klarna / Uber / LinkedIn / AppFolio) and LlamaIndex Workflows 1.0 are **explicitly designed for mid-flight critique-rewrite loops**. Industry signal: "Over 70% of production agents adopted some form of graph structure (DAG or state machine), not simple linear Chain" ([Reactify, LangGraph in 2026](https://www.reactify-solutions.com/articles/langgraph-production-agents-2026); `medium`). Self-RAG and CRAG (both ICLR 2024) describe the academic pattern; LangGraph / Workflows are the production implementation vehicles. Streaming/token-level interception is research-grade, not production default.
 
 **Spec position**: [04-architecture.md §3.2 #2](04-architecture.md), [§5 module map](04-architecture.md), and [§8.1 pipeline](04-architecture.md) show a strictly linear pipeline: `api → retrieve → rerank → llm → format → verify → audit`. `verify/` is a single node with no feedback edge to `llm/`. REQ-020 (V2 claim decomposition) is listed inside `verify/` but the architecture has no support for it to feed back into generation.
 
@@ -642,7 +644,7 @@ TGI already excluded (DEC-012, predates Round 2). Benchmark §Topic 7 confirms T
 ### R2.T3 — Data, API, Database
 
 #### R2-T3-01 [CONFIRMED] Postgres SKIP LOCKED queue pattern
-pg-boss + pgmq are 2026 production-grade peers using exactly the same pattern (`93-stage5r2-benchmark.md` §Topic 2). DEC-038 is 2026-aligned.
+pg-boss + pgmq are 2026 production-grade peers using exactly the same pattern (`92a-stage5r2-benchmark.md` §Topic 2). DEC-038 is 2026-aligned.
 
 #### R2-T3-02 [DIVERGE-JUSTIFIED] Postgres-as-everything at MVP (relational + audit + queue + trace store)
 Benchmark §Topic 2 explicitly endorses Postgres-only at ≤2 concurrent: "Postgres-only fully credible at ≤2 concurrent users; Redis adds operational cost not justified at that scale". DEC-034 + DEC-066 combo holds. **Verified**: no LISTEN/NOTIFY usage in spec, so the documented scaling trap (`high` confidence per Recall.ai post-mortem + PgDog analysis) does not apply.
@@ -820,7 +822,7 @@ Following the same convention as Round 1's Fix Audit, every RC-R2-\* item was ap
 | RC-R2-T8-01 (V2 ReAct architecture) | **FIXED** | `04-architecture` §8.2 (V2 extension as node + feedback edge addition under DEC-075) + `20-agent-behavior` §1 (V2 framing) + §3 (existing ReAct fallback adapted to graph) + §6 failure-table rows for feedback iteration cap |
 | RC-R2-T8-04 (Iteration cap + cost ceiling) | **FIXED** | `20-agent-behavior` §3.3 hard-caps table extended (iteration cap N=1 MVP / N≤2 V2; cost ceiling per turn) + `02-requirements` NFR-023 + NFR-024 |
 | RC-R2-X1 (Compatibility — REQ-020 forward-pressure) | **FIXED** | Subsumed by RC-R2-HL-01 (graph adoption makes REQ-020 a node addition rather than redo) |
-| RC-R2-X3 (Solo / team annotation discipline) | **DEFERRED (Stage 6)** | Tracked as a Stage 6 spec-writer instruction in `confirmed-context.md` §6 ("Per-feature timeline annotation"); will land when `00-spec-index.md` is generated |
+| RC-R2-X3 (Solo / team annotation discipline) | **APPLIED (Stage 7, 2026-07-06)** | Applied in `10-build-plan.md` — every phase and every `TASK-001` through `TASK-032` carries an explicit Team-path / Solo-path estimate, consistent with team demo date 2027-03-26 (DEC-080), solo path 2027-05+ (DEC-081), and the 2026-08-29 team-materialization checkpoint (RISK-007) |
 | RC-R2-X4 (DEC chain integrity) | **FIXED** | DEC-075..081 written with supersedes entries on DEC-026 / DEC-032 (partial) / DEC-034 (partial) / DEC-041 / DEC-052 / DEC-066 (revised) / DEC-068 / DEC-073 (timeline + solo-fallback portions); `confirmed-context.md` Drift Log has matching entries |
 
 **Phase E sweep results (cross-reference consistency check):**
@@ -985,7 +987,7 @@ Stray unannotated `bge-large-en-v1.5` / `e5-large-v2` references found during th
 | Reference completeness — REQ IDs | **PASS** — REQ-056 added to `02-requirements.md` and referenced from `01-product-brief.md` + `confirmed-context.md` |
 | Numerical sanity — VRAM allocation | **PASS** — §4.2.2 recalculated subtotal (cold ~19.0 GB / warm ~23.0 GB) and headroom (cold ~5.0 GB / warm ~1.0 GB) sum correctly against the 24 GB floor; tightened headroom is explicitly flagged as a caveat, not silently absorbed |
 | Numerical sanity — §7B.12 latency budget | **PASS** — rerank line item (≤150 ms) now explicitly tied to the ONNX-default backend (DEC-093); total p95 figures (≤7,160 ms warm / ≤7,860 ms cold) unchanged since the rerank budget was already stated at the ONNX-achievable figure, DEC-093 just makes that backend the shipped default rather than an aspirational one |
-| Concept drift — `bge-large-en-v1.5` / `e5-large-v2` as *active* embedding choice | **PASS** — all remaining occurrences are either annotated supersede references or confined to historical/frozen documents (`13-decision-log.md` DEC-052/013/014 entries, `90-stage1-trend-research.md`, `92-stage5-review-memos.md` Round 1-3 sections, `93-stage5r2-benchmark.md`, `groundeddocs-handoff-2026-06-28.md` — all append-only or explicitly frozen snapshots per this file's own conventions) |
+| Concept drift — `bge-large-en-v1.5` / `e5-large-v2` as *active* embedding choice | **PASS** — all remaining occurrences are either annotated supersede references or confined to historical/frozen documents (`13-decision-log.md` DEC-052/013/014 entries, `90-stage1-trend-research.md`, `92-stage5-review-memos.md` Round 1-3 sections, `92a-stage5r2-benchmark.md`, `groundeddocs-handoff-2026-06-28.md` — all append-only or explicitly frozen snapshots per this file's own conventions) |
 | Concept drift — `retrieval_set` vs `reranked_set` as the citation-verification target | **PASS** — every live occurrence of `retrieval_set` in `04-architecture.md` and `20-agent-behavior.md` is now either annotated as "not a valid verification target" or contrasted explicitly with `reranked_set` |
 | Concept drift — 16 GB vs 24 GB hardware floor as *operative* NFR text | **PASS** — `02-requirements.md` NFR-001 corrected from a stale 16 GB figure to 24 GB; remaining 16 GB mentions confirmed confined to frozen/historical documents |
 | Supersede chain integrity | **PASS** — DEC-086 supersedes DEC-052's embedding portion only (generation/NLI/language-scope portions of DEC-052 explicitly stated as still in force); DEC-092 explicitly applies retroactively to DEC-082's quantization change; DEC-089 explicitly extends (not replaces) DEC-060; all other new DECs supplement rather than supersede |
@@ -1003,4 +1005,315 @@ Stray unannotated `bge-large-en-v1.5` / `e5-large-v2` references found during th
 - [x] Sweep complete — reference completeness, numerical sanity, concept drift, and supersede-chain checks all PASS
 
 **Round 4 verdict (2026-07-03)**: 3 user decisions + 9 architect-proposed fixes (2 Critical, 3 High, 3 Medium-High/Medium, minor documentation items) actioned; 1 finding (competitor-verification, F6) explicitly declined by user and left as an open question rather than silently dropped; 1 finding (F5, VRAM/concurrency headroom) documented as a caveat rather than architecturally resolved, flagged forward to `09-deployment-ops`. No item silently dropped.
+
+---
+
+## Round 5 (2026-07-05) — Dimension-based review (10-pass matrix)
+
+### R5.0 — Why Round 5 was opened
+
+A fifth review pass was run directly against `00-index.md`'s **Architecture review matrix** (a 10-row dimension table: Summary, Security, Reliability, Performance, Deployment & Cost, Maintainability, Evaluability, Traceability, API/interface contracts, ECM integration), rather than through this skill's own T1-T8 topic framing that Rounds 1-4 used. **This is a process deviation, and it is being reconciled here rather than hidden.** `00-index.md`'s matrix was introduced as a *virtual-slicing* reading aid for `04-architecture.md` (see that file's "Review order" note) — a legitimate way to scope reads across a 1,100+ line source file — but it is not the skill's canonical Stage 5 vocabulary, and its 10 rows do not map 1:1 onto T1-T8. Two consequences of running the review this way, corrected in this section:
+
+1. No dimension→topic mapping was produced at review time (§R5.2 below fills the gap).
+2. Neither `92-stage5-review-memos.md` (this file) nor `confirmed-context.md`'s Drift Log received an entry when the round completed — unlike every prior round, which is a real convention break per `workflow.md`'s Stage 5 section and `architecture-reviewer.md`'s Deliverables list ("One memo per executed topic, gathered in `92-stage5-review-memos.md`"). This section and the Drift Log row added alongside it (see `confirmed-context.md`) close that gap.
+
+Round 5 was run by "Architect (per user-approved review)" (per the Owner column in `13-decision-log.md` DEC-094..108) directly against the spec set as it stood after Round 4 (post-DEC-093, 2026-07-03). All 10 rows of `00-index.md`'s matrix are marked "✅ Reviewed 2026-07-05" with findings landed as DEC-094 through DEC-108 (15 DECs total, tagged **5R5** in the Round column of `13-decision-log.md`). No CRITICAL findings; severity skews Medium-High per the pattern visible in the DEC rationale text (mostly documentation-propagation gaps: a fix made in one pass not propagated to every touched document — an explicitly recurring pattern the review itself calls out, e.g. DEC-098's and DEC-108's rationale both name DEC-096 as the originating precedent for "fix doesn't propagate to every touched document").
+
+### R5.1 — Findings table (DEC-094 through DEC-108)
+
+| DEC | Dimension pass | What changed | Why |
+|---|---|---|---|
+| DEC-094 | Summary | `§1` plain-English summary corrected: `verify/` is the differentiator for claim/citation grounding, but not the system's only refusal point (`safety_input/`/`safety_output/` also produce `policy_blocked`). Documentation-only, no behavior change | `§1` still claimed `verify/` was "the only place" refusal could happen, contradicting `§4.3`'s verdict-to-refusal mapping added in Round 3 |
+| DEC-095 | Summary | `§5.1` call-direction table extended with governance rows for `safety_input/`, `safety_output/`, `policy/`, `cache/` — the 4 nodes added by DEC-075/076/077/082 | Those 4 nodes had no call-direction rule, leaving the `tests/architecture/` CI import-graph check with nothing to enforce against them |
+| DEC-096 | Security | Retrieval-rail indirect-injection scan confirmed to run inside `acl/`'s Layer 2 join step (matching `§8.1`'s pipeline pseudocode), not a new standalone node. `§5.0`, `§5.1`, `§5.1.1` (new `retrieval_safety_verdicts` field), `§4.3`, and the Mermaid/ASCII diagrams aligned to `§8.1`. Extends DEC-042's `verification_unavailable` trigger set | The scan was asserted as MVP functionality in `§12.2`/`§12.5` and `§8.1` already specified where it runs, but the module map/call-direction table/typed-state contract had no representation of it — an implementer following only those artifacts would never build it. A first-draft fix nearly added a conflicting standalone node before catching the discrepancy against `§8.1` |
+| DEC-097 | Security → Performance | `§7B.12` latency budget gains an explicit line item for the retrieval-rail scan (≤80 ms warm / +30 ms cold). Revised totals: warm-cache p95 ≤7,240 ms (760 ms headroom, was 840 ms); cold-cache ≤7,890 ms (110 ms headroom, was 140 ms) | The scan was always in scope per `§8.1` but had no budgeted latency cost — invisible in the SLO accounting. Cold-cache headroom (110 ms) flagged as thin, worth revisiting if per-chunk scan cost grows |
+| DEC-098 | Reliability | Three fixes: (a) `20-agent-behavior.md` §6 failure-table attribution corrected (retrieval-rail scan belongs to `acl/`, not `safety_input/`); (b) two prose-only 2026-07-03 findings (VRAM admission-control gap, cold-cache burst/demo-day scenario) promoted to **NFR-030**/**NFR-031**; (c) added 2 failure-table rows for TEI embedding/rerank service unavailability (503), previously absent despite TEI being a separately-failable container | (a) was a direct consequence of DEC-096 — the two failure/refusal "source of truth" docs drifted apart the moment one was corrected and the other wasn't. (b) closes a traceability gap: prose-only findings deferred to a not-yet-written `09-deployment-ops.md` have no owner. (c) found by cross-checking the failure table against the docker-compose service list rather than the table's own internal logic |
+| DEC-099 | Performance | Two fixes to `23-evals-guardrails.md`: (a) §7.2 tuning-lever table's "top-K 10→20" corrected to "above the documented default of 50 — e.g. 75 or 100," matching NFR-027/`§7B.3`/`§7B.4`; (b) duplicate "§6" heading (Threshold-tuning protocol vs. Customer onboarding runbook) resolved — runbook renumbered to §7 (7.1-7.3), cascading Open questions to §8 and Cross-references to §9 | (a) would mislead an ops engineer running a live customer tuning session with a starting point that doesn't match the shipped default. (b) found by cross-referencing this very memos file's RC-T6-01 tracking note, which explains why the collision existed |
+| DEC-100 | Deployment & Cost | `§4.2.1`'s explicit rejection of 16-20 GB GPUs (Tesla T4, A2, RTX A4000) made authoritative over `§4.2`'s prior "Degraded (GPU)" tier claim for that VRAM range; the Degraded (GPU) row is retired, 24 GB becomes a hard GPU floor; CPU-only degraded-edge tier remains the sole below-floor fallback. `NFR-001` corrected to match | The two tables gave opposite answers to "will it run on my hardware" — every cataloged GPU in the 16-20 GB window is on §4.2.1's rejection list, so the "Degraded (GPU)" row described no valid hardware. User chose to trust the finer-grained sub-matrix |
+| DEC-101 | Deployment & Cost | docker-compose formalized as the MVP orchestration choice; Kubernetes explicitly not adopted at MVP. Revisit trigger = V3 multi-host (REQ-026) | User asked whether K8s should replace docker-compose. Analysis: the performance model is bounded by single-GPU compute/VRAM, not orchestration choice; K8s's real value (multi-node scheduling) matches V3 scope, and adopting it now works against REQ-011's ≤30-min install target |
+| DEC-102 | Deployment & Cost | Poll-only CDC transport made a first-class supported topology (not just a webhook-failure fallback) for customers whose network segmentation prohibits an inbound webhook listener. `cdc/` can run exclusively as an outbound poller, admin-configurable interval (default 30 min, recommended 5 min where ECM API limits allow). Adds REQ-057 + NFR-032. No new infrastructure; DEC-034's Kafka exclusion unaffected | User asked about an event-bus alternative for segmented networks; analysis found an event bus doesn't solve the connection-direction problem unless GroundedDocs is the subscriber — which the existing re-poll mechanism (DEC-051/DEC-056) already achieves. Promoted it to a deliberately-selected topology with its own SLA instead of adding new infrastructure |
+| DEC-103 | Maintainability | Two fixes: (a) `cdc/`'s call-direction row extended to permit invalidation-only calls into `cache/` (force-refresh ACL cache entries on `acl_changed` per §7B.5); (b) `QueryGraphState` gains 3 V2-reserved, MVP-unset fields (`intent_class`, `nli_performed`, `policy_waiver_id`) matching REQ-051/DEC-084, mirroring the existing REQ-020 reservation pattern | (a) was a real contradiction: §7B.5 requires `cdc/` to force-refresh the Redis ACL cache, but the CI-enforced call-direction table gave `cdc/` no permission to call `cache/` at all. (b) closed an asymmetry where one V2 feature (REQ-020) had reserved schema fields and an equally-specified one (REQ-051) did not |
+| DEC-104 | Evaluability | Two fixes: (a) `§8.1`'s `refusal_decision()` pseudocode corrected — "mechanical fail rate > X%" (implying tunable) changed to "> 0%, hardcoded, not tunable — NFR-004," matching the early-exit logic a few lines above and `§8.5`'s threshold table; (b) golden set gains a new **Retrieval-rail refusal prompts** category (+5) testing that `acl/`'s retrieval-rail scan produces `verification_unavailable` (distinct from `safety_input/`'s `policy_blocked`), previously uncovered | (a) risked a reader concluding mechanical fail rate is configurable, which would violate NFR-004's 100% citation-hit-rate hard gate if implemented that way. (b) is a direct consequence of DEC-096 (same session) — a new refusal pathway was clarified in architecture but never propagated into eval coverage |
+| DEC-105 | Traceability | `audit_events` safety-rail forensics capture (§4.3) explicitly extended to cover the per-chunk `retrieval_safety_verdicts` list (DEC-096), not just the singular `safety_input_verdict`/`safety_output_verdict` fields previously named | §4.3's audit-capture sentence predated DEC-096's plural per-chunk field and was never updated to confirm it's captured too; without this, a disputed chunk-drop decision would have no forensic trail |
+| DEC-106 | Traceability | KV-cache invalidation triggered by `legal_hold_added` (DEC-091) must itself be written to `audit_events` (conversation_id, triggering doc_id, event timestamp, invalidation timestamp) | DEC-091's cache-invalidation requirement had no corresponding audit-write requirement, even though DEC-091 frames legal hold as the highest-stakes compliance case in the document — the system could prove a document was frozen but not that the conversation-level remediation ran |
+| DEC-107 | API/interface contracts | `§7`'s API surface listing corrected from three surfaces to four (Query/Ingest/Admin/Operational), adding endpoints already referenced elsewhere but never listed in §7 (`POST /v1/admin/eval`, two `acl/refresh_*` endpoints, `GET /ready`, plus new `PUT /v1/admin/config/cdc` for DEC-102). **Created `specs/06-api-contracts.md` as a stub**, consolidating all endpoints, explicitly marked placeholder pending Stage 6 | `06-api-contracts.md` did not exist, and §7 (the interim canonical listing) had drifted from endpoints introduced elsewhere. Per the review matrix's own instruction, both the §7 correction and the stub were produced together |
+| DEC-108 | ECM integration | Two fixes: (a) §7B.5's opening sentence corrected to mention poll-only mode (DEC-102) alongside webhook, instead of framing webhook as the only MVP transport; (b) `ECMAdapter`'s CDC interface gains `poll_changes(cursor) -> tuple[list[Event], str]` (pull-style) alongside the existing `subscribe_changes(handler)` (push-style); reference-adapter table notes `poll_changes()` is mandatory for poll-only customers | DEC-102 (same session) made poll-only mode first-class but never propagated into (a) the plain-English description or (b) the adapter interface contract itself — the same "fix doesn't propagate to every touched document" pattern already seen with DEC-096 |
+
+### R5.2 — Dimension → Topic mapping
+
+Following Round 1's D1-D7 → T1-T8 template. `00-index.md`'s 10 review-matrix rows do not correspond 1:1 to T1-T8 (they are a virtual-slicing reading aid over `04-architecture.md`, not the skill's topic vocabulary); this table is the reconciliation.
+
+| `00-index.md` dimension | Maps to skill topic | DEC(s) |
+|---|---|---|
+| 0 Summary | T1 Product-System Fit (cross-cutting orientation/consistency) + T2 Architecture Alternatives (module map accuracy) | DEC-094, DEC-095 |
+| 1 Security | T4 Security, Privacy, and Compliance | DEC-096, DEC-097 |
+| 2 Reliability / failure handling | T5 Reliability, Observability, and Operations | DEC-098 |
+| 3 Performance | T5 Reliability, Observability, and Operations (latency/SLO accounting) | DEC-097 (shared with Security), DEC-099 |
+| 4 Deployment & cost | T5 Reliability, Observability, and Operations (deployment topology, cost/capacity) | DEC-100, DEC-101, DEC-102 |
+| 5 Maintainability & extensibility | T1 Product-System Fit (complexity vs. team capability) + T2 Architecture Alternatives (module boundary correctness) | DEC-103 |
+| 6 Evaluability | T6 Build, Test, and Verification + T8 AI Agent Production Readiness (citation/grounding verification at runtime) | DEC-104 |
+| 7 Traceability | T4 Security, Privacy, and Compliance (audit logs) + T8 AI Agent Production Readiness (conversation/decision provenance) | DEC-105, DEC-106 |
+| 8 API / interface contracts | T3 Data, API, and Database | DEC-107 |
+| 9 ECM integration | T3 Data, API, and Database (external contracts) + T4 Security, Privacy, and Compliance (authz/audit boundary) | DEC-108 |
+
+No dimension pass in this round maps to T7 (Multi-Tenant Isolation) — expected, since T7's trigger does not apply to this single-tenant on-prem product (see §R5.4 below).
+
+### R5.3 — Close-out checklist
+
+- [x] `00-index.md` — Architecture review matrix table already carries "✅ Reviewed 2026-07-05" + DEC ids per row (pre-existing at time of this memo; this Round 5 section is the missing narrative write-up for it)
+- [x] `13-decision-log.md` — DEC-094 through DEC-108 present with Owner = "Architect (per user-approved review)", Round tag **5R5**
+- [x] `02-requirements.md` — NFR-030, NFR-031 (DEC-098), REQ-057, NFR-032 (DEC-102) added
+- [x] `04-architecture.md` — §1, §4.2, §4.2.1, §5.0, §5.1, §5.1.1, §7, §7B.5, §7B.10, §7B.12, §8.1, §12.2 (via §8.1 alignment) all touched per the individual DEC rationale text above
+- [x] `06-api-contracts.md` — created as a stub (DEC-107); did not exist before this round
+- [x] `13-decision-log.md` — canonical log entries (this is also file #2 above; listed once for the checklist, referenced twice functionally)
+- [x] `20-agent-behavior.md` — §6 failure table corrected (DEC-098) and extended (DEC-104's retrieval-rail category is a goldset change in `23-evals-guardrails.md`, not this file — no double-count)
+- [x] `23-evals-guardrails.md` — §7.2 top-K correction, §6/§7/§8/§9 renumbering (DEC-099), new goldset category (DEC-104)
+- [x] `confirmed-context.md` Drift Log — **new row added in this pass** (see file; Round 5 / 5R5 entry, this is the row this checklist item was pending on)
+
+### R5.4 — T7 skip formalization (bookkeeping, not re-litigation)
+
+Per this task's scope: the skip decision itself (single-tenant on-prem, T7 does not apply) is correct and is **not being re-opened**. What was missing was the formal `SKIP-NOT-APPLICABLE` label in the two places the skill convention expects it (`confirmed-context.md` and/or this memos file) — it existed only as informal prose ("Skipped: 30-33 multi-tenant SaaS" in `confirmed-context.md` §2) plus one formal instance buried in `04-architecture.md` line 1202 ("T7 multi-tenant `SKIP-NOT-APPLICABLE`"), which predates this file's Round 1 and was never cross-referenced here.
+
+**Formal record (added now, Round 5, as bookkeeping):** T7 — Multi-Tenant Isolation — **`SKIP-NOT-APPLICABLE`**. Rationale: GroundedDocs is single-tenant on-premise per DEC-003 and `confirmed-context.md` §2 ("Deployment model: single-tenant on-premise... Not multi-tenant SaaS... Skipped: 30-33 multi-tenant SaaS lifecycle, isolation, pricing, blue/green"). No tenancy concerns arise at the architecture level; each install is a dedicated single-customer deployment. This label is also being added to `confirmed-context.md` §2 in this same pass (see that file).
+
+### R5.5 — T2 staleness check (Architecture Alternatives)
+
+Task-mandated check: is T2's Round 1 coverage (D3-09/DEC-032 build-approach comparison + Round 2's orchestration-framework benchmark) still current given the LangGraph/Redis/layered-rails decisions made afterward in Rounds 2-3?
+
+Finding: **current, not stale.** The chain is: DEC-032 (Round 0, build-from-scratch) → DEC-057 (Round 1, +2 scoring dimensions, from-scratch retained) → R2-HL-01 / DEC-075 (Round 2, full LangGraph adoption for *orchestration only*, explicitly narrowing DEC-032's scope rather than reversing it — "build-from-scratch posture is dropped for orchestration, but retained for `verify/` algorithm internals, retrieval logic, ACL adapters, and audit semantics") → DEC-076 (Round 2, Redis introduced, explicitly not reversing DEC-034's Celery/Kafka exclusion) → DEC-101 (Round 5, Deployment & Cost pass, docker-compose vs. Kubernetes, explicitly analyzed and decided against K8s at MVP). Round 5's DEC-101 is itself fresh evidence that T2 is still being actively maintained rather than left stale — a new alternative (K8s) was raised and dispositioned with current rationale, not waved through on old analysis. No open T2 alternative-comparison question was found unaddressed.
+
+### R5.6 — Round 5 verdict
+
+**Round 5 verdict (2026-07-05, written up retroactively in this pass)**: 15 DECs (DEC-094..108) actioned across all 10 `00-index.md` review-matrix dimensions; 0 Critical, mostly Medium/Medium-High documentation-propagation and cross-document-consistency fixes plus 3 Deployment & Cost architecture questions resolved (DEC-100 GPU tier, DEC-101 docker-compose-vs-K8s, DEC-102 poll-only CDC). No item silently dropped — every dimension row in `00-index.md` shows its DEC ids and a one-line finding count. The process deviation (matrix-driven instead of T1-T8-driven) is reconciled via the dimension→topic mapping in §R5.2; no re-review of substance was required because every DEC-094..108 decision was independently sound on inspection and the T1-T8 mapping is a documentation exercise, not a re-litigation. **Stage 6 entry remains UNBLOCKED** conditional on the full five-round topic coverage check in the Stage 5 Topic Coverage Matrix below (see next section) — see that section for the one bookkeeping action taken (T7 label formalization) and the one true open item (F6 competitor-verification, carried from Round 4, still open by user's own choice).
+
+---
+
+## Stage 5 topic coverage matrix (T1-T8, across all five rounds)
+
+This section answers, for each of the skill's canonical Stage 5 topics, which round(s)/DEC(s) closed it — so a future reader can see Stage 5 completeness at a glance without reading all five rounds in full.
+
+| Topic | Status | Closed by | Notes |
+|---|---|---|---|
+| **T1 — Product-System Fit** (mandatory) | **CLOSED** | Round 1 D1/D2 (DEC-052, DEC-053, DEC-072, RC-T1-01..12) + Round 2 R2.T1 (R2-T1-01 CONFIRMED, R2-T1-02 DIVERGE-JUSTIFIED, DEC-073) + Round 5 dimension 0/5 (DEC-094, DEC-095, DEC-101, DEC-103) | Positioning, MVP/non-goal boundaries, and complexity-vs-team-capability all revisited across rounds; no open T1 question remains |
+| **T2 — Architecture Alternatives** (conditional, triggered — multiple mature alternatives existed) | **CLOSED** | Round 1 D3-09 (DEC-032, DEC-057) + Round 2 R2-HL-01/R2.T2 (DEC-075, full LangGraph adoption, narrows not reverses DEC-032) + Round 5 dimension 4 (DEC-101, docker-compose vs. K8s, fresh evidence of active maintenance) | Staleness check performed in this pass (§R5.5 above) — confirmed current, not stale, given post-Round-1 LangGraph/Redis/layered-rails decisions |
+| **T3 — Data, API, and Database** (conditional, triggered — persistent state + external contracts) | **CLOSED** | Round 1 D3/D4/D5 (DEC-059, DEC-060, DEC-065, DEC-071, RC-T3-01..11) + Round 4 (DEC-086 hybrid retrieval fix, DEC-087 audit citation snapshot) + Round 5 dimension 8/9 (DEC-107 API surface + `06-api-contracts.md` stub, DEC-108 ECM adapter interface) | RC-T3-01 (measured VRAM) was explicitly deferred to Stage 7 as a cloud-rig validation deliverable, not an open Stage 5 gap — see Round 1 Fix Audit "Open follow-ups" |
+| **T4 — Security, Privacy, and Compliance** (mandatory for AI agents — always triggered) | **CLOSED** | Round 1 D5/D6 (DEC-061, DEC-062, DEC-063, DEC-069, DEC-070, RC-T4-01..07) + Round 2 R2.T4 (DEC-076 concurrency/Redis, R2-T4-03 ACL cache TTL) + Round 3 (DEC-082 SafetyRailAdapter, layered rails) + Round 4 (DEC-088 citation ACL-bypass fix) + Round 5 dimension 1 (DEC-096, DEC-097) | Threat model, two-layer auth, layered safety rails, retrieval-rail scan all closed; no open T4 item |
+| **T5 — Reliability, Observability, and Operations** (conditional, triggered — targets production deployment) | **CLOSED** | Round 1 D6 (RC-T5-01) + Round 2 R2.T5 (DEC-076 concurrency, R2-T5-03 OTEL conventions) + Round 4 (DEC-090 reconciliation crawl, DEC-091 KV-cache legal-hold) + Round 5 dimension 2/3/4 (DEC-098 NFR-030/031 + TEI failure rows, DEC-099 latency/perf fixes, DEC-100/101/102 deployment topology) | Round 4's F5 (VRAM/concurrency headroom) is a documented caveat, not an open gap — flagged forward to `09-deployment-ops` (Stage 7 deliverable), consistent with the RC-T3-01 deferral pattern |
+| **T6 — Build, Test, and Verification** (mandatory) | **CLOSED** | Round 1 D7 (RC-T6-01 onboarding runbook) + Round 2 R2.T6 (DEC-078 golden set 150-200+50) + Round 5 dimension 6 (DEC-099 runbook renumbering, DEC-104 goldset retrieval-rail category) | RC-T6-02 (driver matrix / Docker version / ingest resume) remains explicitly deferred to Stage 7's `09-deployment-ops` — a named, tracked deferral, not a silent drop |
+| **T7 — Multi-Tenant Isolation** (conditional, trigger does not apply) | **CLOSED — `SKIP-NOT-APPLICABLE`** | Skip decided at Stage 0 (DEC-003, single-tenant on-prem); formal skip label pre-existed only in `04-architecture.md` line 1202; **formalized in this pass** in `confirmed-context.md` §2 and in this file (§R5.4 above) | Bookkeeping only — the skip itself is correct and was not re-litigated |
+| **T8 — AI Agent Production Readiness** (mandatory for AI agents) | **CLOSED** | Round 1 D7 (RC-T8-01, RC-T8-02) + Round 2 R2.T8 (DEC-084 intent classifier, R2-T8-04 iteration cap/cost ceiling) + Round 3 (DEC-084 waiver gating, DEC-085 federated retrieval) + Round 4 (DEC-089 fingerprint extension) | Prompt registry, judge decoupling, refusal monitoring, citation verification, cost ceiling, iteration cap, and server-reconstructed conversation history all have landed DECs; no open T8 item |
+
+**Coverage summary**: 8/8 topics CLOSED (7 substantively closed with DECs across multiple rounds; T7 closed via a correctly-applied and now-formally-labeled skip). No topic is OPEN.
+
+## Round 6 (2026-07-06) — Independent re-review (D1-D5)
+
+### Why this round
+
+Rounds 1-5 used the skill's T1-T8 topic framing (Round 1), a 2026-best-practice benchmark re-run (Round 2), external feedback disposition (Round 3), an independent gap-hunt (Round 4), and a 10-pass ISO/IEC-25010-style dimension matrix keyed to `00-index.md` (Round 5). This round uses a **different, deliberately narrower dimension set** — D1 architectural soundness, D2 design errors/inconsistencies, D3 ECM integration completeness, D4 non-functional attributes, D5 uncovered edge cases — run as a fresh, independent pass by a reviewer with no memory of the prior five rounds' working notes (only their *conclusions*, read as evidence of what is already fixed). The brief: enterprise ECM integration background, production RAG design experience, AI agent orchestration experience, 2026 enterprise-deployment constraints. Findings below are things Rounds 1-5 did not catch, or that drifted after a Round 1-5 fix landed elsewhere. Where a finding overlaps a prior round's *topic* but reaches new ground (a specific line-level contradiction, a newly-introduced field, a downstream doc that never absorbed an upstream fix), it is reported once here with a note distinguishing it from the closed prior item.
+
+All 116 source files read in full per the task brief (00-index.md, 01-product-brief.md, 02-requirements.md, 04-architecture.md in full via two reads, 06-api-contracts.md, 13-decision-log.md in full via two reads, 20-agent-behavior.md, 23-evals-guardrails.md, confirmed-context.md, 90-stage1-trend-research.md, partial 92a-stage5r2-benchmark.md for citation grounding); 91-stage3-ux-skip.md, groundeddocs-handoff-2026-06-28.md, and 92-stage5-review-memos.md Rounds 1-5 skimmed per the brief's reduced-weight instruction.
+
+No stop condition was hit: the specs directory is populated and consistent enough to review; no fundamental undecidable contradiction was found (every apparent conflict below resolves against `13-decision-log.md` or a clearly-dated supersede note); no top-level architecture diagram is missing; no real credentials/IPs/secrets were observed (only synthetic figures — RMB service-tier pricing, RunPod budgets, example JWTs-by-reference).
+
+---
+
+### D1 — Architectural Soundness
+
+[Severity] Low
+[Dimension] D1
+[Location] 04-architecture.md §4.1, §9.1 — tech stack table + docker-compose service list
+[Problem] Best practices for 2026 enterprise-grade RAG—such as hybrid retrieval, reranking, two-layer ACLs, observability, and evaluation closed-loops—are fully present. Furthermore, the LangGraph orchestration + layered safety rails (DEC-075/077/082) have reached current production-grade patterns; no major issues were found in this dimension. The following two items are minor refinements within the dimension rather than architectural defects.
+[Basis] 92a-stage5r2-benchmark.md Topics 1/3/8/9 all list graph orchestration + hybrid retrieval + two-layer ACL + layered safety rails as the 2026 "high confidence" mature default, which directly maps to the selections in 04-architecture.md.
+[Recommendation] No architectural changes required.
+[Risk] None
+
+[Severity] Low
+[Dimension] D1
+[Location] 04-architecture.md §4.3 (NLI row) vs §4.2.2 (VRAM allocation table)
+[Problem] The NLI model (deberta-v3-base-mnli) is explicitly described in the tech stack table and docker-compose as "CPU-runnable" and "not GPU-resident by default" (§9.1 comments). However, the 24GB VRAM allocation table in §4.2.2 counts its ~0.7 GB toward "Subtotal (all GPU-resident)", and uses this to derive a current warm-cache headroom of only ~1.0 GB (DEC-097 has already flagged this headroom figure as a "thin risk point that needs to be revisited"). If the NLI model is actually deployed on the CPU, the VRAM headroom should be more permissive (~1.7 GB). If the NLI model actually requires a resident GPU (e.g., to meet the $\le\text{600ms}$ warm latency budget in §7B.12), then the "CPU-runnable" description in §4.1/§9.1 is misleading, and the available headroom on this 24GB card is even tighter than what the documentation already admits. These two mutually contradictory facts currently coexist, and one of them must be updated.
+[Basis] 04-architecture.md L93 "CPU-runnable"; L961 "co-located with api/'s host, not GPU-resident by default"; L148-152 VRAM allocation table includes NLI in the GPU-resident subtotal.
+[Recommendation] Clarify the deployment location of the NLI model (CPU or GPU) and unify the descriptions across both sections. If CPU deployment is maintained, remove the 0.7 GB from the GPU subtotal in §4.2.2 and recalculate the headroom (which would likely increase from ~1.0GB to ~1.7GB, mitigating the risk already flagged by DEC-097). If the NLI model requires a GPU to meet the latency budget, update the phrasing in §4.1/§9.1 and retain the pessimistic headroom value.
+[Risk] If the current 1.0GB headroom figure is underestimated due to this error, hardware verification in 09-deployment-ops will waste effort trying to resolve a non-existent bottleneck. If it is overestimated (meaning the NLI actually requires a GPU), the actual available headroom will be thinner than promised in the documentation, further undermining the credibility of the warm-cache 5-8 concurrency target.
+
+[Severity] Medium
+[Dimension] D1
+[Location] 04-architecture.md §8.2 V2 extension (intent_classifier/ node placement)
+[Problem] The V2 intent_classifier/ node introduced by REQ-051/DEC-084 is placed "between api/ and the parallel fan-out", meaning it runs strictly in serial before [safety_input ∥ retrieve]. This means that once V2 enables intent classification, a new serial phase is inserted before the parallel fan-out meticulously designed in DEC-082 (which hides the ~150ms of safety_input under the ~250ms of retrieve to achieve the $\le\text{270ms}$ budget verified by NFR-029). Furthermore, the latency budget for this classifier itself is never defined or accounted for anywhere in the latency table of §7B.12. The entire parallelization narrative of DEC-082 ("parallelize cheap rail checks under expensive retrieval") is quietly undermined here in V2 by an unbudgeted new node.
+[Basis] 04-architecture.md L877 "new node between api/ and the parallel fan-out"; §7B.12 lacks an intent_classifier latency row; the $\le\text{270ms}$ budget for NFR-029 makes no mention of classifier overhead.
+[Recommendation] When spec'ing out intent_classifier/ for V2, add a latency budget row (even if it is just a "TBD" placeholder), and evaluate whether the classifier can also be parallelized inside the fan-out (e.g., as a third parallel branch, or consolidated into the same model call as safety_input), rather than accepting it by default as a new, purely serial overhead.
+[Risk] It may only be discovered at V2 delivery that the intent classifier eats up the ~150ms that DEC-082 fought so hard to save, causing the NFR-005 warm-cache SLO to tighten up again under the V2 configuration, without this regression being covered by any existing tests or latency budget rows.
+
+✅ D1 Complete — 3 issues found
+
+---
+
+### D2 — Design Errors & Inconsistencies
+
+[Severity] Medium
+[Dimension] D2
+[Location] 01-product-brief.md §9.3 vs 13-decision-log.md DEC-078 / 02-requirements.md REQ-049
+[Problem] 01-product-brief.md §9.3 "Adoption metrics" still reads: "Sample corpus citation-hit-rate (manual audit): 100% on 50-question hand-curated set". However, Round 2 (DEC-078) already expanded the golden set from 50 questions to 150-200 questions, downgrading the 50-question set to a "smoke test subset." Both 23-evals-guardrails.md §2.2 and 02-requirements.md REQ-049 have already reflected this change. This row in 01-product-brief.md was never written back or updated after Round 2, leading anyone who reads §9 to believe that the acceptance criteria is still based on 50 questions.
+[Basis] 01-product-brief.md L236; 13-decision-log.md DEC-078; 23-evals-guardrails.md §2.2 Round 2 supersede paragraphs.
+[Recommendation] Update this row in §9.3 to align with the phrasing in DEC-078 (e.g., "100% on the 150-200 prompt full golden set (50-prompt smoke subset preserved for CI)"), or clarify if this metric is deliberately anchored only to the smoke subset (if so, explicitly state the rationale instead of leaving an unnoted legacy figure).
+[Risk] Vendor evaluators or internal personnel checking against the §9 acceptance criteria will get outdated targets, leading to alignment disputes prior to the demo.
+
+[Severity] Low
+[Dimension] D2
+[Location] 04-architecture.md §4.3 (DEC-092 quantization-accuracy gate) vs REQ-033 / REQ-034 model-swap acceptance criteria
+[Problem] DEC-092 only mandates a strict hazard-detection accuracy-preservation check for "quantization/adapter changes to safety-rail models." This discipline does not symmetrically extend to REQ-033 (generative model adapter switching) or REQ-034 (embedding model version switching)—the acceptance criteria for both only state that "RAGAS reports produce comparable deltas," without requiring an explicit, must-pass quality gate before switching like DEC-092 does. Quantization or version changes for generative and embedding models can similarly introduce silent quality regressions (especially the impact of quantization on generation fluency or embedding recall), but currently, only safety classifier models are required to "verify no regression before making changes."
+[Basis] 13-decision-log.md DEC-092 (only scoped to "any change to a safety-rail model's weights"); 02-requirements.md REQ-033/REQ-034 acceptance criteria (RAGAS delta reporting only, no explicit gate).
+[Recommendation] Evaluate whether the DEC-092 style "pre-change A/B quality gate" principle should be generalized to the model switching workflows for REQ-033/034 (as a mandatory step in the LCC T3 migration workflow), rather than being limited exclusively to safety classifiers.
+[Risk] When clients switch generative or embedding model versions during LCC Tier 3 migrations, they will only see a "deltas report" without a mandatory pass/fail gate, which might cause an actual quality regression to be cleared as normal model drift.
+
+✅ D2 Complete — 2 issues found
+
+---
+
+### D3 — ECM Integration Completeness
+
+[Severity] Medium
+[Dimension] D3
+[Location] 04-architecture.md §7B.5 CDC event table vs §7B.9 version semantics
+[Problem] The CDC event table lists document_created, acl_changed, version_added, version_deleted, document_deleted, retention_expired, legal_hold_added, and legal_hold_released. However, there is no event type corresponding to metadata-exclusive changes such as "moving a document from a folder with a stricter ACL to a folder with a more relaxed ACL" or "downgrading/upgrading a document's security_label individually" (without an overall ACL change). Currently, the acl_changed(doc_id) event is required to cover the scenario where "a folder-move causes inherited ACL changes" (noted on L565), but an individual change to security_label (e.g., downgrading from confidential to internal without changing the principal set) is not listed as an explicit scenario that triggers acl_changed. Consequently, there is a window where the security_label field in the Layer 1 payload could be missed by CDC updates.
+[Basis] The Layer 1 payload field table in 04-architecture.md §7B.3 includes security_label; the §7B.5 event table only mentions folder-moves triggering acl_changed and fails to mention label-only changes.
+[Recommendation] Clarify whether the acl_changed event contract also covers individual security_label changes (most ECMs treat label changes and ACL changes as two independent types of events). If the ECM side does trigger them separately, add an explicit event type to the ECMAdapter contract or explicitly include it in the semantics of acl_changed.
+[Risk] When a client individually adjusts the sensitivity label of a document (without changing the principal list), the security_label in the Qdrant payload on the RAG side will remain stale. When the Layer 1 filter uses the old label for retrieval, the filtering logic will mismatch the actual policy on the ECM side (e.g., the client has declassified the document but RAG still filters based on the older, stricter label, causing a false positive no_recall; the reverse scenario is more severe: the client increases the classification level but RAG still permits access using the old, relaxed label).
+
+[Severity] Medium
+[Dimension] D3
+[Location] 04-architecture.md §7B.10 ECMAdapter interface vs §7B.9 compound/virtual document handling
+[Problem] §7B.9 acknowledges that Documentum virtual documents and OpenText compound documents treat doc_id as a node tree rather than a leaf, and the MVP strategy is to "index leaf documents only, preserving the parent_document_id hierarchy for V2 use." However, get_effective_acl(doc_id) and batch_check_access(user, doc_ids) in the ECMAdapter interface (§7B.10) both take a leaf doc_id as the sole unit of input. There is no explanation of how the adapter implementation should correctly resolve inheritance from the ECM side when the effective ACL of a leaf node is actually inherited from the root node of a virtual document. This is not just an "aggregated retrieval problem that only needs to be handled in V2"; it is a prerequisite for whether the leaf document ACL itself is correct during the MVP phase. If Documentum's virtual document ACLs are maintained only at the root node and leaf nodes lack independent ACLs, the get_effective_acl(leaf_doc_id) contract may be impossible to implement correctly by the Documentum adapter even in MVP.
+[Basis] 04-architecture.md §7B.9 "MVP indexes leaf documents only... V2 supports root-aggregated retrieval"; the adapter contract method signatures in §7B.10 all use a single doc_id as a parameter and do not mention the division of responsibility for resolving upward to the root node in compound-document scenarios.
+[Recommendation] Explicitly state in the ECMAdapter contract that when an ECM's ACL is actually attached to the root node of a compound document, the implementer of get_effective_acl(leaf_doc_id) is required to internally resolve upward to the root node to fetch the ACL (instead of assuming every leaf has an independent ACL). This should be written clearly before V2 Documentum/OpenText adapter development begins; otherwise, the ambiguity in the contract will only be uncovered during the first real integration.
+[Extended Recommendation] This issue is currently masked and invisible under the MVP's LocalAdapter (which has no concept of compound documents), but it will be exposed immediately once V2-$\alpha$ (Documentum + OpenText) work begins.
+[Risk] It may only be discovered during V2-$\alpha$ adapter development that the contract lacks a definition for compound documents, requiring rework of the ECMAdapter interface itself (which has a broader impact than a single adapter implementation, since the interface is a shared contract for all V2 adapters).
+
+✅ D3 Complete — 2 issues found
+
+---
+
+### D4 — Non-Functional Attributes
+
+[Severity] Low
+[Dimension] D4
+[Location] Maintainability — Entire document set
+[Problem] 13-decision-log.md has reached 115 DEC entries with dense, overlapping supersede relationships (e.g., DEC-052 is partially inverted by DEC-086, and DEC-079 is partially amended by DEC-082). While 00-index.md already provides offset/limit indexes and "virtual slicing" guidelines to mitigate maintainability risks, there is currently no mechanism allowing an implementer to verify at a glance the complete set of "currently active" decisions (i.e., excluding all lines that have been superseded). Readers must manually trace the supersede chains line-by-line across a table of 100+ rows every single time.
+[Basis] The entirety of 13-decision-log.md; 00-index.md "most-referenced ids" statistics (DEC-082 has 53 references, DEC-077 has 53, DEC-052 has 49, etc.) indicate that the cognitive load of tracing supersede chains is already quite high.
+[Recommendation] Generate a materialized view of "currently active decisions" during the Stage 6/7 spec-writer phase (e.g., grouped by topic, listing only the latest valid versions + links pointing back to the full history) instead of requiring every reader to perform manual supersede reasoning across generative documents. This is a one-time generation cost and does not require redesigning the decision log format.
+[Risk] New implementers or auditors tracing a currently active parameter (e.g., "what exactly is the NLI threshold?") can easily reference an outdated value that has been superseded, especially when a supersede chain spans across three or four historical decisions.
+
+[Severity] Medium
+[Dimension] D4
+[Location] Intersection of Scalability / Traceability — 04-architecture.md §12.3 otel_spans retention vs 13-decision-log.md DEC-070 audit immutability
+[Problem] §12.3 already distinguishes between otel_spans (operational diagnostics table, 30-90 days short retention) and audit_events (DEC-070 immutable, long-term compliance retention), which is good design. However, both tables are defined to reside within the same Postgres instance, and the compliance retention policy for audit_events is described as "per customer policy configurable" without providing any order-of-magnitude reference (e.g., "expected size of the audit table after X years, or when a single-node Postgres will require an archiving strategy"). For a product that treats "audit-as-a-product" as a core selling point, and whose clients could be in the financial/public sectors (where AU/NZ compliance requirements can be 7+ years), the capacity growth of long-term immutable append-only tables is completely unquantified and unplanned for single-node deployments.
+[Basis] 13-decision-log.md DEC-070 "audit_events is append-only and immutable"; 04-architecture.md §12.3 explicitly notes short retention for otel_spans but lacks an equivalent capacity planning statement for audit_events; the AU/NZ compliance context of DEC-072 implies multi-year retention obligations.
+[Recommendation] 09-deployment-ops (Stage 7) should include a capacity growth estimate for audit_events (calculated as audit record size per query $\times$ expected QPS $\times$ number of years) along with minimum commitments for single-node Postgres storage, backup, and archiving strategies. Even a coarse-grained plan like "expected to be sustainable on a single node for N years, after which cold archiving to object storage is recommended" is better than leaving it completely blank.
+[Risk] After several years of running a single-node docker-compose deployment, the audit table size may exceed disk planning and trigger a production outage. Since DEC-070 prohibits deleting audit data, the only remediation path (migration/archiving) will turn into a high-risk operational task if it is not designed in advance.
+
+✅ D4 Complete — 2 issues found
+
+---
+
+### D5 — Uncovered Edge Cases
+
+[Severity] High
+[Dimension] D5
+[Location] Intersection of Deployment / Runtime — Interaction between live model updates and the cache/ answer cache
+[Problem] The ACL cache table in 07B.5 defines that the answer cache (query_hash, ACL_set, model_version) is invalidated during a model_version rotation, which covers generative model switches (REQ-033). However, the vLLM optimization flags in §9.1 (DEC-083, where --speculative-decoding evaluates to true/false at deployment time based on the "measured VRAM headroom" per tier) and the GPU eviction policy in §4.2.2 (evicting Llama Prompt Guard 2 under VRAM pressure) both constitute service configuration changes that can occur at runtime, rather than explicit model_version change events. If speculative decoding is temporarily disabled/re-enabled on the fly due to VRAM pressure, or if a safety-rail model is reloaded after being evicted, there is no field within the answer cache key to reflect "under which service configuration this generation was produced." This can cause the exact same (query_hash, ACL_set, model_version) key to hit a cached answer generated via different inference paths under different runtime configurations.
+[Basis] 04-architecture.md §7B.5 cache invalidation table (only invalidates based on model_version rotation / embedding swap / admin flush); speculative decoding in DEC-083 is a runtime/tier configuration that does not alter model_version; the eviction policy in §4.2.2 similarly yields no model_version changes.
+[Recommendation] Explicitly clarify whether the cache key needs to additionally incorporate a "serving_config_hash" (covering runtime parameters that affect output distribution, such as quantization methods or speculative-decoding switches), or accept the current design (stating that these parameters affect latency/throughput rather than output content, so they do not need to be part of the cache key) and explicitly document this assumption instead of leaving it unaddressed.
+[Extended Recommendation] If speculative decoding or safety-rail model switching has been verified to "not affect the distribution of output content," this item can be downgraded to Low or simply noted as a known equivalence assumption.
+[Risk] If VRAM pressure eviction or a speculative decoding switch happens to be triggered during a demo or at a client site, the cached historical answers hit by users might come from outputs generated by different inference paths. For a product that sells itself on "reproducible, auditable inference," this indeterminism has not been explicitly ruled out.
+
+[Severity] Medium
+[Dimension] D5
+[Location] Deployment Phase — Loading order of bge-m3 / safety-rail models and the /ready health check during initial installation
+[Problem] REQ-011 requires that running docker compose up until /ready returns 200 must complete within $\le\text{30 minutes}$, and /ready is the only unauthenticated endpoint that "gates widget load and install verification" (§9.1, §7.4). However, the architecture fails to clarify whether the evaluation criteria for /ready requires all services (vLLM + two TEI containers + NLI + two safety-rail models + NeMo Guardrails + Qdrant + Postgres + Redis, totaling 10+ services) to be fully loaded, or if it can return 200 as soon as the api/ process itself starts up. If it is the latter, the first query received right after /ready returns 200 is highly likely to hit a window where a backend service is still loading model weights, resulting in a cold-start failure (503) rather than a clean, expected "still initializing" response.
+[Basis] 04-architecture.md §9.1 docker-compose service list (10+ independent services, including multiple containers that need to load large model weights); the REQ-011 acceptance criterion only mentions a "working /ready endpoint" without defining its dependency check scope; the §7.4 API contract similarly leaves downstream dependency check logic for /ready undefined.
+[Recommendation] Explicitly define the evaluation contract for /ready: it should aggregate the respective health endpoints of all downstream services (vLLM, dual TEIs, NLI, dual safety rails, NeMo, Qdrant, Postgres, Redis), returning 200 only when all of them are ready. This evaluation logic should be explicitly written down in Stage 7 09-deployment-ops or 06-api-contracts.md, rather than leaving it to the implementers' guesswork.
+[Risk] During a vendor's initial installation demo, the widget might load prematurely because /ready returned 200 too early. The very first question asked could then run into a safety-rail container that is still loading weights, resulting in a failure that severely impacts first impressions (undermining the exact promise of "$\le\text{30 minutes}$ to an available state" that REQ-011 attempts to guarantee).
+
+[Severity] Medium
+[Dimension] D5
+[Location] Runtime — Interaction between legal_hold and the answer cache (contrasted against KV-cache already covered by DEC-091)
+[Problem] DEC-091 (Round 4) carefully handles how legal_hold_added must invalidate the vLLM KV-cache of active conversations, because generated context might still influence subsequent turns. However, the exact same risk surface has not been covered for Redis's answer cache ((query_hash, ACL_set, model_version), TTL 600s). If a document generated a cached answer referencing it within the 600 seconds prior to being frozen, the legal_hold_added event currently only triggers freezes at the Qdrant/Postgres levels (§7B.6) + KV-cache invalidation (DEC-091), without mentioning whether entries containing references to that document in the Redis answer cache need to be invalidated. In a legal hold context (which DEC-091 emphasizes as "an active litigation-hold obligation"), continuing to return stale answers from the cache that contain frozen document content to subsequent users asking the same query presents a compliance risk of the exact same magnitude as DEC-091, yet it is not treated with equal weight.
+[Basis] 04-architecture.md §7B.6 legal hold freeze semantics + DEC-091 KV-cache invalidation (only mentions KV-cache, fails to mention answer cache); the §7B.5 answer cache invalidation trigger table only lists model_version rotation / embedding swap / admin flush, and omits legal_hold_added.
+[Recommendation] Expand the invalidation scope of legal_hold_added from "KV-cache" to "entries in the answer cache that reference this doc_id," symmetrically adding an invalidation rule of the same level as DEC-091 (this may require additionally indexing "which doc_ids are referenced by this cached answer" inside the answer cache to perform targeted invalidations, rather than clearing the entire table).
+[Risk] Within the 600-second TTL window after a legal hold takes effect, a user repeating the same question might still hit a stale answer from Redis that contains content from the frozen document—this is precisely the type of risk DEC-091 sought to block, just manifested at a different caching layer.
+
+✅ D5 Complete — 3 issues found
+
+---
+
+### Top 5 Must-Fix Items (Sorted by Severity + Impact)
+
+1. [D5] Redis answer cache is not invalidated under legal_hold scenarios (High severity): After a legal hold takes effect, the Redis answer cache may continue to return old answers containing frozen document content within its 600s TTL window. The compliance risk is of the same level as the fixed DEC-091 (KV-cache invalidation), but it is completely uncovered.
+2. [D5] Evaluation contract for /ready health check is undefined (Medium-High impact): The dependency check scope across 10+ services is unclear, directly threatening the initial installation experience promise of REQ-011. This is a high-risk point for a vendor's first impression.
+3. [D1] Self-contradiction regarding NLI deployment location (CPU/GPU): This directly impacts the credibility of the already thin VRAM headroom figures in §4.2.2. It represents a conflict between two simple, verifiable facts; fixing it incurs low cost but yields high cognitive returns.
+4. [D2] Golden set acceptance numbers not updated (50 vs 150-200): 01-product-brief.md §9.3 is out of sync with DEC-078, which can easily lead to mismatched expectations during vendor evaluations or internal acceptance testing. The cost to fix is a single line of text editing.
+5. [D3] ACL resolution responsibility for compound/virtual documents is undefined in the ECMAdapter contract: Although the MVP masks this issue by using a LocalAdapter, it will be exposed on day one when work begins on V2-$\alpha$ (Documentum/OpenText, the adapters with the highest technical priority). The cost of defining the contract early is far lower than the cost of rework.
+
+### Deferrable Items List (With Justification)
+
+- [D1] intent_classifier has no latency budget: This issue falls within the scope of V2 REQ-051. The MVP does not have this node, so it does not block current delivery. It is recommended to address this when spec'ing out V2 altogether, rather than reworking it now.
+- [D2] REQ-033/034 lacks a DEC-092 style quality gate: Both of these REQs are currently V2 items, and they already include RAGAS delta reporting as a baseline discipline. This can be added during the V2 LCC Tier 3 workflow design and does not block the MVP.
+- [D4] Decision log maintainability (Missing materialized view): This is a "human cognitive load" issue rather than a functional defect, and the current offset/limit indexing mechanism serves as a usable mitigation. Generation can be deferred to the Stage 6/7 spec-writer phase.
+- [D3] security_label individual change event type is undefined: This will not be triggered when the MVP uses the LocalAdapter (which lacks a real ECM). It can be deferred until the design of the real V2 ECM adapter, though it is recommended not to push it back too far (it should be finalized before V2-$\alpha$ kickoff).
+
+### Open Questions Requiring User Decisions
+
+1. Does the answer cache need to be inversely indexed by doc_id to support targeted legal_hold invalidations? This involves choosing whether to add an extra indexing dimension to the Redis cache structure (cost) in exchange for compliance completeness (benefit). This is a product/compliance risk trade-off; architects can provide the technical implementation, but "how much residual risk is acceptable" must be decided by the user or compliance lead.
+2. *How strict should the evaluation scope of /ready be? Full dependency checking vs fast return is a trade-off between "a seamless initial installation experience" and "avoiding a misleading early 200." It is worth confirming on the product side to prioritize the first impression for vendor evaluators.
+3. Should the DEC-092 style quality gate for quantization/version changes be extended to all switchable models (generative, embedding, rerank), or is it deliberately reserved only for safety classifiers? If it is a deliberate choice (as safety classifiers carry the highest risk and merit special treatment), this judgment should be explicitly recorded in the decision log so that it does not appear to be an omission.
+
+---
+
+### R6.FixAudit — Round 6 in-stage application audit (2026-07-06)
+
+User resolved all 3 open questions same-day and directed immediate in-stage application, mirroring the Round 1-4 Fix Audit convention (report → fix, same session) rather than deferring to a separate stage. All 12 findings + 3 decision items were applied directly to spec files; 10 new DECs (DEC-109..118) recorded in `13-decision-log.md`; a matching Drift Log row added to `confirmed-context.md`.
+
+| # | Item | Severity/Dim | DEC id | Status | Landed in |
+|---|---|---|---|---|---|
+| 1 | D1 — hybrid retrieval/rerank/ACL/observability/eval/orchestration match 2026 best practice, no fix needed | Low, D1 | DEC-118 | **CONFIRMED, logged** | `13-decision-log.md` DEC-118 (bookkeeping entry — "no issue" outcome formally recorded, not left implicit) |
+| 2 | D1 — NLI CPU/GPU accounting contradiction | Low, D1 | DEC-109 | **FIXED** | `04-architecture.md` §4.1 (NLI row annotated CPU-resident) + §4.2.2 (VRAM table corrected, NLI excluded from GPU subtotal, headroom ~1.0→~1.7 GB warm / ~5.0→~5.7 GB cold) + admission-control caveat figure updated |
+| 3 | D1 — V2 `intent_classifier/` unbudgeted sequential latency | Medium, D1 | DEC-110 | **FLAGGED, not resolved** (V2-scoped design trade-off, correctly deferred per Round 6's own "deferred items" list) | `04-architecture.md` §8.2 (gap documented with two named resolution directions) |
+| 4 | D2 — stale 50-question golden-set figure in product brief | Medium, D2 | DEC-111 | **FIXED** | `01-product-brief.md` §9.3 |
+| 5 | D2 — DEC-092 gate not extended to REQ-033/034 | Low, D2 | DEC-112 | **FIXED** (per user decision 3) | `04-architecture.md` §4.3 (gate extended) + `02-requirements.md` REQ-033 + REQ-034 acceptance criteria |
+| 6 | D3 — `acl_changed` event contract silent on standalone `security_label` change | Medium, D3 | DEC-113 | **FIXED** | `04-architecture.md` §7B.5 CDC event table |
+| 7 | D3 — compound/virtual document ACL-authority resolution undefined in `ECMAdapter` contract | Medium, D3 | DEC-114 | **FIXED** | `04-architecture.md` §7B.9 |
+| 8 | D4 — decision-log supersede-chain cognitive load (no materialized view) | Low, D4 | DEC-115 | **FIXED** (process note added, Stage 6/7 deferred execution) | `confirmed-context.md` §6 |
+| 9 | D4 — `audit_events` capacity-growth never quantified | Medium, D4 | DEC-115 | **FIXED** (process note added, Stage 7 deferred execution) | `04-architecture.md` §12.3 |
+| 10 | D5 — answer-cache key vs runtime serving-config (speculative decoding / rail eviction) ambiguity | High, D5 | DEC-116 | **RESOLVED** (explicit equivalence assumption recorded, no cache-key change needed) | `04-architecture.md` §7B.5 |
+| 11 | D5 — `/ready` dependency-check scope undefined | Medium, D5 | DEC-117 | **FIXED** (per user decision 2 — full dependency check) | `04-architecture.md` §9.1 + `06-api-contracts.md` `/ready` entry + `02-requirements.md` REQ-011 |
+| 12 | D5 — legal-hold freeze not propagated to Redis answer cache | Medium, D5 | DEC-116 | **FIXED** (per user decision 1 — `doc_id` reverse index) | `04-architecture.md` §7B.5 (reverse index + invalidation mechanism) + §7B.6 (cross-reference) + §4.1 (cache-layer row) + §5.0 (module-map row) |
+| 13 | Decision item 1 — index answer cache by `doc_id` | User decision | DEC-116 | **FIXED** | (same as #12) |
+| 14 | Decision item 2 — `/ready` full dependency check | User decision | DEC-117 | **FIXED** | (same as #11) |
+| 15 | Decision item 3 — extend DEC-092 gate to REQ-033/034 | User decision | DEC-112 | **FIXED** | (same as #5) |
+
+**Notes on scope discipline**:
+- Item 3 (`intent_classifier/` latency gap) is the one item left as "flagged, not resolved" — this is deliberate. Round 6 itself classified it as V2-scoped and deferrable; the coordinator's brief did not include it among the 3 pre-answered open questions, and resolving it would require picking between two credible V2 design directions without a design call from the user. This matches the coordinator's own stop-condition guidance ("stop and flag ... rather than guessing") — it is flagged in the spec text itself (§8.2) rather than silently resolved.
+- All other 11 findings + 3 decisions were mechanically resolvable (either a factual correction, a process-note addition, or a direct application of one of the 3 user decisions) and did not require any further unilateral design call.
+
+- [x] **12 of 12 Round 6 findings dispositioned** (10 fixed/resolved, 1 confirmed-no-issue and logged, 1 flagged-not-resolved by design)
+- [x] **All 3 user decisions applied**
+- [x] **10 new DECs (DEC-109..118) recorded**, Drift Log row added to `confirmed-context.md`
+
+---
+
+### R6.CrossCheck — consistency verification (2026-07-06)
+
+| # | Check | Result |
+|---|---|---|
+| 1 | VRAM headroom correction (DEC-109) recalculated correctly: 19.0→18.3 GB cold subtotal (−0.7 GB NLI), 23.0→22.3 GB warm subtotal (−0.7 GB NLI); headroom 5.0→5.7 GB cold, 1.0→1.7 GB warm | **PASS** — arithmetic verified: 24 − 18.3 = 5.7; 24 − 22.3 = 1.7 |
+| 2 | VRAM headroom figure consistent everywhere it's cited (§4.2.2 table, admission-control caveat, §4.1 NLI row) | **PASS** — all three locations now read ~1.7 GB warm-cache; no orphaned ~1.0 GB reference remains in a live (non-historical) context |
+| 3 | DEC-097's latency-budget headroom (760 ms warm / 110 ms cold) is a distinct quantity (time, not VRAM) and is correctly unaffected by the DEC-109 VRAM correction | **PASS** — §7B.12 and §9.4's NFR-031 cross-reference both still read 760 ms / 7,240 ms / 7,890 ms / 110 ms unchanged; confirmed these figures never depended on NLI's GPU-vs-CPU residency (NLI's ≤600 ms latency budget in §7B.12 was already stated as achievable independent of residency) |
+| 4 | Historical Drift Log / Round 4 finding-table references to the *prior* ~1.9 GB → ~1.0 GB VRAM figure remain unedited | **PASS (intentionally unchanged)** — `confirmed-context.md`'s 2026-07-03 Drift Log row and `92-stage5-review-memos.md`'s Round 4 "F5" finding row both describe a past state accurately; editing them would falsify the historical record. Only the *current-state* table in §4.2.2 needed correction |
+| 5 | Answer-cache `doc_id` reverse-index change is consistent between the cache-design section (§7B.5) and the legal-hold/DEC-091 description (§7B.6) | **PASS** — §7B.6 now cross-references §7B.5's mechanism rather than duplicating it; §7B.5 is the single source of the reverse-index mechanism |
+| 6 | No orphaned references to the old cache-key scheme (pre-reverse-index) remain uncorrected | **PASS, one correction made during this cross-check** — `04-architecture.md` §5.0's `cache/` node-overview row still described only the primary `(query_hash, ACL_set, model_version)` key with no mention of the reverse index; corrected in this pass to reference DEC-109/§7B.5. Two remaining mentions (§9.4's caching-strategy bullet, §4.1's original cache-layer purpose row before the DEC-109 edit) describe the primary key only, which remains accurate — the reverse index is additive/secondary, not a replacement, so omitting it there is not an inconsistency |
+| 7 | `/ready` full-dependency-check description does not contradict §9.1's docker-compose service list or REQ-011's ≤30-minute install target | **PASS** — the docker-compose service list already lists exactly the 10 services `/ready` now aggregates (no new service introduced); REQ-011's 30-minute target is explicitly preserved as unchanged in both `04-architecture.md` §9.1 and the REQ-011 acceptance criterion — DEC-117 changes what "ready" *means*, not the time budget |
+| 8 | Extended DEC-092/DEC-109 accuracy gate (REQ-033/034) does not conflict with REQ-034/DEC-059's blue/green migration design or REQ-033's generation-model swap procedure (§9.3) | **PASS** — §9.3's existing LCC Tier 3 procedure already models a pass/fail gate ("3. RAGAS golden set runs... 4. If pass... 5. If fail: rollback"); DEC-109 formalizes what "pass" means (≥ DEC-017 floor) rather than introducing a new procedural step, so no conflict with the existing shadow-collection/rollback mechanism |
+| 9 | All new DEC-109..118 ids are referenced correctly wherever cited; none of DEC-094-108 is silently contradicted | **PASS** — grep-verified every DEC-109..118 id resolves to at least one spec-file citation beyond its own log row; all cross-references to DEC-091/DEC-092/DEC-097 (the three prior DECs most touched by this round) are framed as "extends"/"supplements," not "supersedes" or "reverses" — consistent with the actual additive relationship |
+| 10 | Answer-cache serving-config-hash question (D5 finding) resolved without introducing an unverified new claim | **PASS** — resolution is explicitly framed as an equivalence *assumption*, with a named re-evaluation trigger (temperature change, draft-model change, unguarded quantization change) rather than an unqualified "no impact" claim |
+
+**Verdict**: **9 checks PASS on first pass, 1 check (#6) required and received a same-pass correction** (the `cache/` module-map row was updated to reference the reverse index). No FAIL required leaving open. The spec set is internally consistent after this Fix Audit + Cross-Check pass.
 

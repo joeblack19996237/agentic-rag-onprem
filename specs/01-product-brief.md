@@ -233,7 +233,7 @@ Industry RAGAS thresholds adopted as starting point (DEC-017, confirmed by user 
 | Metric | MVP target | Owner |
 |---|---|---|
 | Vendor evaluator install success rate | ≥ 1 successful first-touch demo install | User |
-| Sample corpus citation-hit-rate (manual audit) | 100% on 50-question hand-curated set | User |
+| Sample corpus citation-hit-rate (manual audit) | 100% on the 150-200 prompt full golden set (50-prompt smoke subset preserved as the CI fast-feedback ring) — **corrected 2026-07-06, DEC-109; this row was never updated after DEC-078 (2026-06-29) expanded the golden set from 50 to 150-200 prompts** | User |
 
 ## 10. Product Risk Register (PM stage update)
 

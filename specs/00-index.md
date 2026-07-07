@@ -36,7 +36,7 @@ Purpose: let a reviewer (human or Claude) know *what's where* and *which DEC/REQ
 | [90-stage1-trend-research.md](90-stage1-trend-research.md) | 38K / 472 lines | Market/competitor scan, anti-hallucination patterns, on-prem LLM/rerank landscape, ECM/CCM vendor landscape (Stage 1 input, not a spec) |
 | [91-stage3-ux-skip.md](91-stage3-ux-skip.md) | 3K / 61 lines | Why Stage 3 (UX) was skipped for this MVP + re-run triggers |
 | [92-stage5-review-memos.md](92-stage5-review-memos.md) | 94K / 939 lines | Stage 5 architecture review findings (D1 hidden assumptions, D2 positioning, ...). **These are open findings against Group A/B/C — check whether each has been resolved into a DEC/REQ or is still outstanding.** |
-| [93-stage5r2-benchmark.md](93-stage5r2-benchmark.md) | 76K / 578 lines | Stage 5 Round 2 benchmark against 2026 mature-practice patterns (orchestration, concurrency/queue/cache, per-claim verification) |
+| [92a-stage5r2-benchmark.md](92a-stage5r2-benchmark.md) | 76K / 578 lines | Stage 5 Round 2 benchmark against 2026 mature-practice patterns (orchestration, concurrency/queue/cache, per-claim verification) |
 | [groundeddocs-handoff-2026-06-28.md](groundeddocs-handoff-2026-06-28.md) | 16K / 200 lines | Agent handoff snapshot as of 2026-06-28: locked decisions, open items, style guide. **Time-stamped — verify still current before trusting "where the workflow stands".** |
 
 ## Architecture review matrix (dimension-based, primary review axis)
@@ -79,3 +79,46 @@ Each dimension pass should end its findings with a line like: *"Touches: acl/, c
 3. **Run a separate cross-reference pass** over Group D: grep all `DEC-\d+` / `REQ-\d+` occurrences repo-wide, confirm every id in A/B/C exists in the log and nothing in the log is orphaned (defined but never referenced downstream).
 4. **Treat Group E as evidence, not spec** — findings in `92-stage5-review-memos.md` should each map to either an accepted DEC (now in Group D) or a still-open item; flag any that are neither.
 5. **For incremental review**, diff against the last-reviewed commit instead of re-reading full files: `git diff <baseline>..HEAD -- specs/`.
+
+## Stage 6 — Selected / Skipped Specs (confirmed by user, 2026-07-06)
+
+Slot-00 filename note: this project retains `00-index.md` as its stable slot-00 filename rather than the catalog's generic `00-spec-index.md` — an explicit Stage 6 confirmation, not an oversight. Structural fix applied ahead of Stage 7: `93-stage5r2-benchmark.md` renamed to `92a-stage5r2-benchmark.md` (DEC-119) to free catalog-reserved slot 93 for Stage 7's own final `confirmed-context.md` snapshot step — that snapshot (`93-confirmed-context.md`) now exists, a literal copy taken at Stage 7 close-out.
+
+### Selected — Generated (Stage 7 complete, both phases)
+
+| Slot | File | Size | Key IDs introduced | Traces to |
+|---|---|---|---|---|
+| 03 | `03-workflows.md` | ~17 KB | None new (references REQ-001/002/010/043/045/057) | `04-architecture.md` §5/§7B/§8.1, `20-agent-behavior.md` |
+| 05 | `05-data-model.md` | ~31 KB | `legal_hold_invalidation_events` entity (no new REQ/DEC) | `04-architecture.md` §6, §7B.3-§7B.10 |
+| 06 | `06-api-contracts.md` | ~21 KB | None new — expanded from DEC-107 stub; resolved the stub's sync/async eval open question | `04-architecture.md` §7, `05-data-model.md` |
+| 07 | `07-database.md` | ~21 KB | None new | `05-data-model.md` (physical schema derivation) |
+| 08 | `08-observability-logs.md` | ~16 KB | None new | `04-architecture.md` §12, `90-stage1-trend-research.md` §3.3 |
+| 09 | `09-deployment-ops.md` | ~24 KB | None new — closes RC-T3-01/RC-T4-02/RC-T6-02 | `04-architecture.md` §4.2/§9 |
+| 22 | `22-memory-context.md` | ~12 KB | None new | `20-agent-behavior.md` §2.4, `05-data-model.md` |
+| 24 | `24-prompt-registry.md` | ~10 KB | None new — establishes the going-forward prompt-changelog discipline | `04-architecture.md` §5.1.1/§8.2, `23-evals-guardrails.md` §3.3 |
+| 41 | `41-integration-contracts.md` | ~17 KB | None new | `04-architecture.md` §7B (consolidated for vendor-integrator audience) |
+| 42 | `42-compliance-security.md` | ~12 KB | None new — intentionally light per `confirmed-context.md` §7 | `04-architecture.md` §12.5, `01-product-brief.md` §6 |
+| 10 | `10-build-plan.md` | ~36 KB | `TASK-001`..`TASK-032` | Every MVP REQ/NFR; applies RC-R2-X3 (team/solo annotation on every task) |
+| 11 | `11-test-plan.md` | ~18 KB | `TEST-001`..`TEST-034` | `23-evals-guardrails.md` (golden set, cross-referenced not duplicated), `06-api-contracts.md`; closes RC-T8-01's remaining half |
+| 12 | `12-verification.md` | ~12 KB | `VG-001`..`VG-030` | Every `TEST-###`/`TASK-###`; demo script per `01-product-brief.md` §9.3/`confirmed-context.md` §6 |
+
+Already existed pre-Stage-7 (Groups A-C above): `00-index.md`, `01-product-brief.md`, `02-requirements.md`, `04-architecture.md`, `13-decision-log.md`, `20-agent-behavior.md`, `23-evals-guardrails.md`, `confirmed-context.md`.
+
+Stage 7 process artifact: `93-confirmed-context.md` (final snapshot, per `spec-catalog.md` slot 93's own definition).
+
+Stage 8's own output (not generated by Stage 7): `14-spec-audit-report.md`.
+
+### Traceability Summary (all 21 generated + pre-existing spec files)
+
+Every `REQ-###`/`NFR-###`/`RISK-###`/`DEC-###` referenced across the 13 Stage 7 files above resolves to a real definition in `02-requirements.md` or `13-decision-log.md` — verified in the final Stage 7 consistency sweep (see `92-stage5-review-memos.md`'s R6/Stage-7 close-out sections). No new `REQ`/`NFR`/`RISK`/`DEC` ids were minted during Stage 7 generation; the only new id namespaces introduced are `TASK-###` (`10-build-plan.md`), `TEST-###` (`11-test-plan.md`), `VG-###` (`12-verification.md`), and `API-{Q,I,A,O}-##` (`06-api-contracts.md`, contract-ID namespace local to that file).
+
+### Skipped (with rationale, per `.claude/skills/idea-to-specs/references/workflow.md` skip categories)
+
+| Slot | File | Skip category | Rationale |
+|---|---|---|---|
+| 03a | `03a-ui-design.md` | `SKIP-NOT-APPLICABLE` | No standalone UI in MVP — the only UI surface is the embeddable iframe widget, whose contract lives in `04-architecture.md`'s integration-surface section and `06-api-contracts.md`. Formalized at Stage 2 via DEC-019; see `91-stage3-ux-skip.md` for the full skip memo (Stage 3, not Stage 6, but the same rationale carries forward — Stage 6 re-confirms it rather than re-litigating) |
+| 21 | `21-tools-and-mcp.md` | `SKIP-COVERED-ELSEWHERE` | MVP ships no agent tool surface (DEC-039: no agent loop; `20-agent-behavior.md` §2.2-2.3 — the model reads query + retrieved chunks and produces a cited answer, nothing else). The only V2 tool (`sub_query_retrieve`, REQ-015 ReAct fallback) is already fully specified in `20-agent-behavior.md` §3.4 (exactly one tool, no file system/web/SQL access) — a dedicated MCP/tool-inventory spec would duplicate that content for a single V2-scoped tool that doesn't exist in MVP. Revisit if/when REQ-015 ships and the tool surface grows past one tool |
+| 30-33 | `30-tenant-lifecycle.md`, `31-tenant-isolation.md`, `32-pricing-model.md`, `33-data-migration.md` | `SKIP-NOT-APPLICABLE` | Single-tenant on-prem per DEC-003; each install is a dedicated single-customer deployment with no tenancy concerns at the architecture level. Formally labeled as Stage 5 topic **T7 — Multi-Tenant Isolation: `SKIP-NOT-APPLICABLE`** (`confirmed-context.md` §2, `92-stage5-review-memos.md` §R5.4). Pricing (32) is separately deferred per DEC-024 (packaging/pricing direction not yet pinned) — not a tenancy skip, but the same non-committal posture applies at Stage 6 |
+| 40 | `40-migration.md` | `SKIP-NOT-APPLICABLE` | This is a greenfield product build, not a migration of an existing GroundedDocs deployment to a new state. The brownfield-adjacent concern this slot exists for — installing *into* a host ECM/CCM system — is covered by `41-integration-contracts.md` (external-system integration) and `04-architecture.md` §7B (ECM/CCM federation), not a self-migration. Revisit if a future major-version migration (e.g. a breaking schema change requiring an existing customer install to migrate) is scoped |
+| 50 | `50-analytics-events.md` | `SKIP-NOT-APPLICABLE` | GroundedDocs is not a product-analytics/growth-metrics surface — there is no self-serve funnel, no growth dashboard, no product-analytics event taxonomy to define. The operational telemetry this slot might otherwise cover (query latency, cache hit ratios, refusal rate, citation hit-rate) is already fully specified as OTel GenAI-convention spans + audit events in `04-architecture.md` §12.3 and is expanded in `08-observability-logs.md` (this phase) — a separate analytics-event catalog would duplicate that without adding a distinct concern (no marketing/growth/conversion funnel exists in a single-tenant on-prem B2B2B product) |
+| 51 | `51-data-pipeline.md` | `SKIP-COVERED-ELSEWHERE` | The only data pipeline in this product is the document ingest pipeline (parse → chunk → embed → index, REQ-002) plus the CDC sync pipeline (ECM → RAG, DEC-051/DEC-102) — both are already fully specified as first-class workflows in `04-architecture.md` §5/§7B and are expanded as system workflows in `03-workflows.md` (this phase) and as schema/migration detail in `07-database.md` (this phase). A separate data-pipeline spec would duplicate rather than add a distinct data-engineering concern (there is no separate analytics ETL, data lake, or warehouse pipeline in this product) |
