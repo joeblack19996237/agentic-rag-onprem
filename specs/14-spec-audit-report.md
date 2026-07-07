@@ -3,6 +3,14 @@
 ## Verdict
 READY
 
+## Re-audit Note (2026-07-08, Gate 7 batch fix)
+
+An independent Gate 7 re-audit (programmatic sweep of every `10-build-plan.md` task tagged "Verification Pattern: TDD" for Red/Green/Refactor/Acceptance Criteria/Verification Evidence completeness) found 13 tasks missing "TDD Refactor" — TASK-012, TASK-014, TASK-015, TASK-016, TASK-017, TASK-019, TASK-021, TASK-022, TASK-023, TASK-024, TASK-025, TASK-026, TASK-029 — and reported TASK-027 as already fixed in a separate same-day observability-spec round. Applying the fix found that second claim did not hold: opening `10-build-plan.md` directly showed TASK-027 in the same incomplete state as the other 13 (Red/Green/Acceptance-Criteria/Verification-Evidence present, Refactor absent), and no commit, branch, or decision-log entry corroborated a prior TASK-027 fix or an existing DEC-127. TASK-027 was folded into this fix round rather than left on a false paper trail (DEC-127).
+
+**Gate 7 — re-verified PASS.** Post-fix, a full re-parse of `10-build-plan.md` (not a re-count of the reported list) confirms all 26 strict-TDD tasks now have exactly one "TDD Refactor" section each — 0 tasks with Red but no Refactor, 0 duplicates. The 12 TDD-Exempt tasks (unaffected by this fix, since "Why TDD-Exempt"/"Rollback Plan" is their own section pair, not "TDD Refactor") were spot-checked to confirm this edit did not touch them. Each added Refactor entry names a task-specific refactor (shared-logic extraction, boundary tightening, or duplication removal tied to that task's own implementation), not a generic placeholder line.
+
+**Scope note**: Gates 1-6, 8, 9 were not re-checked in this pass — this re-audit is scoped to Gate 7's TDD-Refactor-completeness defect only, per the same narrow-scope convention the 2026-07-06 re-audits used. They carry forward as PASS/N/A from the final 2026-07-06 note below.
+
 ## Re-audit Note (2026-07-06, final)
 
 Gates 7 and 8 were re-run a third time, independently, after `spec-writer`'s second fix pass (DEC-125, DEC-126). Gates 1-6 and 9 were **not** re-checked, per the coordinator's scoped instruction, and carry forward as PASS/N/A from the original audit.

@@ -521,6 +521,9 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 #### TDD Green
 - Implement `retrieve/`: hybrid dense+sparse Qdrant query with Layer 1 filter pushdown
 
+#### TDD Refactor
+- Extract the `effective_principals[] → Qdrant filter clause` translation into a shared helper rather than inlining it in the query builder — Layer 2's `acl/` join (TASK-013) reasons about the same principal set when building its `batch_check_access` input, and two independent translations of "what counts as accessible" risk silently drifting apart
+
 #### Acceptance Criteria
 - [ ] Filter-then-search recall matches the unfiltered baseline recall on non-restricted content (confirms the filter doesn't silently break HNSW recall, per `93-stage5r2-benchmark.md` §Topic 4's documented risk)
 
@@ -567,6 +570,9 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 #### TDD Green
 - Implement TEI rerank (ONNX Runtime backend, DEC-093) + vLLM generation call with structural-separator prompt construction (`24-prompt-registry.md`'s `default-v1`)
 
+#### TDD Refactor
+- Extract the `reranked_set` → prompt-context assembly (structural-separator formatting) as a function independent of the vLLM call itself, so `verify/`'s later citation check can reuse the identical reranked_set-to-context mapping instead of re-deriving which chunks were actually shown to the model — keeps DEC-088's "verify checks what generate saw" invariant enforceable at one source of truth
+
 #### Acceptance Criteria
 - [ ] `reranked_set` correctly derived from `acl_trimmed_set`, not `retrieval_set` (DEC-088's invariant, tested here even before `verify/` exists, since the invariant is about what `generate/` sees, not just what `verify/` checks)
 
@@ -587,6 +593,9 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 
 #### TDD Green
 - Implement the webhook receiver + HMAC verification + idempotency dedup (7-day window) + event routing per `03-workflows.md` Workflow 4
+
+#### TDD Refactor
+- Extract the per-event-type routing/dispatch logic from the webhook-specific transport concerns (HTTP receiver, HMAC verification) so TASK-016's poll-only transport can call the same routing function directly — matching this task's own note that poll-only "reuses the existing re-poll code path" rather than re-implementing event dispatch
 
 #### Acceptance Criteria
 - [ ] All 8 event types (`document_created` through `legal_hold_released`) correctly routed
@@ -610,6 +619,9 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 #### TDD Green
 - Implement the outbound poller reusing TASK-015's event-routing logic (§7B.5: "reuses the existing re-poll code path")
 
+#### TDD Refactor
+- Keep `poll_changes(cursor) -> events` isolated from the routing call it feeds into, so cursor-advancement bookkeeping is independently testable from event dispatch — this also leaves the door open for TASK-037's reconciliation crawl to call the same poll primitive for incremental drift checks instead of only full-inventory comparison
+
 #### Acceptance Criteria
 - [ ] Cursor advancement is correct and gap-free
 - [ ] No inbound port opened when `cdc_transport_mode = poll_only`
@@ -631,6 +643,9 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 
 #### TDD Green
 - Implement physical-delete and freeze semantics per `03-workflows.md` Workflow 5
+
+#### TDD Refactor
+- Extract a single `legal_hold_added`/`legal_hold_released`/`retention_expired` event-fan-out point from the physical delete/freeze mechanics themselves, so TASK-026's cross-store cache invalidation hooks into that one dispatch point instead of independently re-detecting the same CDC events — avoids two separate handlers for the same event drifting out of sync
 
 #### Acceptance Criteria
 - [ ] Retention-expiry integration test passes (NFR-014's stated acceptance criterion)
@@ -687,6 +702,9 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 #### TDD Green
 - Implement the retrieval-rail scan (same Llama Prompt Guard 2 model instance, batched over `acl_trimmed_set`, post-PDP-trim per §8.1/DEC-096)
 
+#### TDD Refactor
+- Extract a shared "safety-rail batch scan" function parameterized by input list and drop-rate threshold, reused by both TASK-018's input-rail scan and this task's retrieval-rail scan against the same model instance — the two call sites should differ only in what they scan and their threshold, not in duplicated model-loading/batching code
+
 #### Acceptance Criteria
 - [ ] Flagged chunks dropped, `retrieval_safety_verdicts` populated in audit (DEC-105)
 - [ ] Excessive drop rate → `verification_unavailable`, distinct from `policy_blocked`
@@ -734,6 +752,9 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 #### TDD Green
 - Implement NeMo Guardrails declarative ruleset intercepting graph state transitions
 
+#### TDD Refactor
+- Extract the which-rule-fired → audit-trail mapping into a plain function separate from NeMo's runtime interception callback, so the audit-writing logic has test coverage that doesn't require mocking the NeMo SDK's own callback interface
+
 #### Acceptance Criteria
 - [ ] Policy escalation correctly recorded with the triggering rule identified
 
@@ -754,6 +775,9 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 
 #### TDD Green
 - Implement the mechanical check against `reranked_set` (not `retrieval_set`) with early-exit on any fabrication
+
+#### TDD Refactor
+- Extract citation-token → `(chunk_id, cited-span-text)` resolution as a helper independent of the accept/reject check itself — the NLI slow-path needs the identical span-to-chunk mapping, and duplicating the parsing logic in both stages risks them disagreeing about what text was actually cited
 
 #### Acceptance Criteria
 - [ ] DEC-088's adversarial test passes
@@ -779,6 +803,9 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 #### TDD Green
 - Implement `deberta-v3-base-mnli` NLI check (CPU-resident per DEC-109) + `refusal_decision()` per §8.1's pseudocode
 
+#### TDD Refactor
+- Keep `refusal_decision()` a standalone function of `(refusal_class, acl_denial_mode)` rather than embedding the 5-class taxonomy inline in the NLI-check call site — other short-circuit paths (the retrieval-rail's excessive-drop-rate case, policy escalation) already need to produce the same typed refusal shape, and a single decision function is the one place that mapping can stay correct
+
 #### Acceptance Criteria
 - [ ] All 5 refusal classes independently triggerable and correctly typed
 - [ ] Every refusal is HTTP 200, never a 4xx/5xx
@@ -800,6 +827,9 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 
 #### TDD Green
 - Implement `audit/` node; write path completes before `api/` returns (§8.4)
+
+#### TDD Refactor
+- Extract `context_fingerprint` field assembly as a pure function of `QueryGraphState`, separate from the Postgres write call — DEC-087's citation-survival guarantee and the fingerprint's non-null completeness can then each be unit-tested independent of the DB write path, instead of only observable through an actual insert
 
 #### Acceptance Criteria
 - [ ] `context_fingerprint` non-null on every row, including `policy_blocked` refusals
@@ -831,6 +861,9 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 #### TDD Green
 - Implement prompt cache, answer cache (with `docref:{doc_id}` reverse index, DEC-116), ACL cache with TTL discipline
 
+#### TDD Refactor
+- Expose the `docref:{doc_id}` reverse-index lookup as its own callable interface rather than inlining it inside the answer-cache write path — TASK-026's cross-store legal-hold invalidation needs the same doc_id→cache-key lookup, and a shared interface avoids two independent derivations of that mapping
+
 #### Acceptance Criteria
 - [ ] Cache-hit test passes; TTL/force-refresh discipline (NFR-025) verified
 
@@ -851,6 +884,9 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 
 #### TDD Green
 - Implement the cross-store invalidation sequence per `03-workflows.md` Workflow 5
+
+#### TDD Refactor
+- Extract a single `invalidate_for_legal_hold(doc_id)` orchestration function that calls both the KV-cache and Redis answer-cache invalidators and writes both `legal_hold_invalidation_events` rows, rather than growing a new inline branch per store inside the event handler — gives any future third cache layer one integration point instead of a third bespoke branch
 
 #### Acceptance Criteria
 - [ ] Both cache layers correctly invalidated
@@ -873,6 +909,9 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 
 #### TDD Green
 - Implement OTel spans per node, `otel_spans` persistence, OTLP exporter config
+
+#### TDD Refactor
+- Extract per-node span lifecycle (start span, set GenAI attributes, end span, persist to `otel_spans`) into a single instrumentation wrapper applied uniformly across graph nodes, rather than each node hand-rolling its own span calls — gives TASK-018's parallel-fan-out span-structure check (NFR-029) one place to guarantee correct parent/child linkage instead of trusting every node author to wire it correctly
 
 #### Acceptance Criteria
 - [ ] Span tree matches the documented structure
@@ -919,6 +958,9 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 
 #### TDD Green
 - Implement the RAGAS runner + smoke-ring (50 prompts) + full-ring (150-200 prompts) per `23-evals-guardrails.md` §2.2
+
+#### TDD Refactor
+- Extract the metric-computation-and-threshold-check core as a single function parameterized by prompt set, shared by the smoke and full rings — they should differ only in prompt-set size, not risk silently diverging into two independent scoring implementations if a DEC-017 threshold changes and only one ring's code path gets updated
 
 #### Acceptance Criteria
 - [ ] Smoke ring runs in ≤5 min
