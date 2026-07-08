@@ -15,6 +15,8 @@ The point of having a dedicated spec for this: **"no answer without verified cit
 
 ### 2.1 RAGAS metrics + thresholds (DEC-017)
 
+**Judge model (DEC-130)**: faithfulness and answer_relevancy below are scored by `Qwen2.5-14B-Instruct` int4 (GGUF), run CPU-only via `llama.cpp` and invoked only by the eval runner (§2.3) — never GPU-resident, never a persistent service. Qwen is a different vendor/family from both MVP generation-model candidates (`Llama-3.1-8B-Instruct`/Meta, `Mistral-Small-24B-Instruct`/Mistral AI), satisfying `92a-stage5r2-benchmark.md` §Topic 5's "LLM-as-judge with a distinct judge model" non-negotiable. This is a separate mechanism from the NLI verifier (`deberta-v3-base-mnli`, `04-architecture.md` §8.5) — the NLI model decouples runtime grounding *checking* from generation; the judge model here decouples offline RAGAS *scoring* from generation. Resource footprint: `04-architecture.md` §4.2.2 (excluded from the GPU/VRAM budget by design, ~9-10 GB host RAM only during an eval run).
+
 | Metric | MVP threshold | V2 target |
 |---|---|---|
 | Faithfulness | ≥ 0.75 | ≥ 0.85 |
@@ -72,6 +74,8 @@ cli eval compare a.json b.json
 ```
 
 Output: per-metric pass/fail, per-question detail, failed-question list with NLI scores, citation reports. Owner: user runs manually pre-demo (DEC-027).
+
+**Judge-model lifecycle (DEC-130)**: `cli eval run` loads `Qwen2.5-14B-Instruct` int4 GGUF into host RAM (CPU inference via `llama.cpp`) for the duration of the run and releases it on completion — it is not a resident process between runs. This keeps the RAGAS judge fully off the query-serving GPU (§4.2.2's warm-cache headroom stays untouched by eval runs) at the cost of CPU-inference latency, which is acceptable because no run in the table above (weekly regression, pre-demo gate, CI, Stage 8 audit acceptance) is on a query-latency SLO.
 
 ### 2.4 Eval failure routing
 

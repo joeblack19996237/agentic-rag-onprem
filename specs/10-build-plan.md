@@ -961,7 +961,7 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 
 **Phase**: Phase 5
 **Verification Pattern**: TDD
-**Related Requirements**: REQ-013, REQ-014, REQ-049, NFR-003 (added post-Stage-8, DEC-129), NFR-024 (added post-Stage-8, DEC-129), DEC-017, DEC-078
+**Related Requirements**: REQ-013, REQ-014, REQ-049, NFR-003 (added post-Stage-8, DEC-129), NFR-024 (added post-Stage-8, DEC-129), NFR-002 (judge model must be local/air-gap-compliant — DEC-130), DEC-017, DEC-078, DEC-130 (added post-Stage-8 — RAGAS judge model)
 **Owner Role**: AI
 **Dependencies**: TASK-024
 **Team-path**: ~8 days (includes the ~15d golden-set curation from DEC-080's estimate, split between this task's harness build and the actual prompt-writing effort, which is manual curation work rather than a build task per se) | **Solo-path**: ~15 days
@@ -972,6 +972,7 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 
 #### TDD Green
 - Implement the RAGAS runner + smoke-ring (50 prompts) + full-ring (150-200 prompts) per `23-evals-guardrails.md` §2.2; report aggregation includes cost-per-turn mean/p95 alongside the existing metric breakdown (NFR-024's "eval harness reports cost per turn" acceptance seed)
+- Wire the RAGAS faithfulness/answer_relevancy scorer to the DEC-130 judge model (`Qwen2.5-14B-Instruct` int4 GGUF, CPU inference via `llama.cpp`, loaded only for the run's duration) — **do not** point the RAGAS judge at the same generation model/endpoint used by `generate/` (self-evaluation bias is the specific anti-pattern DEC-130 exists to prevent; the golden-set thresholds in DEC-017 are only meaningful if scored by a model independent of the one being evaluated)
 
 #### TDD Refactor
 - Extract the metric-computation-and-threshold-check core as a single function parameterized by prompt set, shared by the smoke and full rings — they should differ only in prompt-set size, not risk silently diverging into two independent scoring implementations if a DEC-017 threshold changes and only one ring's code path gets updated
@@ -981,9 +982,11 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 - [ ] Full ring produces per-metric pass/fail against DEC-017 thresholds
 - [ ] Eval report includes cost-per-turn mean/p95 (NFR-024)
 - [ ] English-only golden set passes MVP thresholds (NFR-003 — the schema-neutrality half of NFR-003 is TASK-007's concern, not this task's)
+- [ ] RAGAS judge model is `Qwen2.5-14B-Instruct` (DEC-130) — config/code inspection confirms the judge invocation targets a distinct local model, not the `generate/` vLLM endpoint, and makes no outbound network call (NFR-002)
 
 #### Verification Evidence
 - Eval run report (both rings), including cost-per-turn summary (NFR-024, TEST-039)
+- Judge-model independence check: eval-run trace or config dump showing the judge model identifier differs from the generation model identifier for that run
 
 ## Phase 6: End-to-End Verification and Release Readiness
 

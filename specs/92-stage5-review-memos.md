@@ -692,8 +692,11 @@ Benchmark §Topic 6 (`high`): 2026 default = **OpenTelemetry GenAI semantic conv
 
 Recommendation: **150-200 prompts for MVP**, with 50 of those as the smoke-test subset (preserves the original 50-question goldset as an inner ring for CI fast-feedback). User confirmation on number.
 
-#### R2-T6-02 [CONFIRMED] LLM-as-judge with distinct judge model
-Spec discipline matches benchmark non-negotiable: judge model is decoupled from generation model.
+#### R2-T6-02a [CONFIRMED] NLI verifier decoupled from generation model
+`deberta-v3-base-mnli` (DEC-037) is architecturally distinct from the generation model — different family, different purpose (runtime grounding classification, not RAGAS scoring). This part of the original R2-T6-02 finding was correctly resolved.
+
+#### R2-T6-02b [Correction, 2026-07-08] RAGAS LLM-as-judge with distinct judge model — was miscategorized as CONFIRMED, now resolved by DEC-130
+The original R2-T6-02 entry read "**[CONFIRMED] LLM-as-judge with distinct judge model** — judge model is decoupled from generation model," citing the NLI verifier's decoupling as evidence. That conflates two different mechanisms: benchmark §Topic 5 (`92a-stage5r2-benchmark.md` lines 19, 235) is about the RAGAS **LLM-as-judge** used to score faithfulness/answer_relevancy — not about the NLI classifier discussed separately in §Topic 9 (covered correctly by R2-T6-02a above). No RAGAS judge model was ever specified anywhere in the spec set at the time of the original Round 2 review — `23-evals-guardrails.md` §2.1's threshold table listed thresholds with no judge named, and `04-architecture.md` §9.1's MVP docker-compose service list had no judge/eval-model container. This was a genuine **MUST-ALIGN** gap that the original `[CONFIRMED]` label incorrectly closed. **Resolved 2026-07-08 by DEC-130**: RAGAS judge model = `Qwen2.5-14B-Instruct` int4 (GGUF), CPU inference via `llama.cpp`, invoked only by the eval runner — see `04-architecture.md` §4.1/§4.2.2/§9.1 and `23-evals-guardrails.md` §2.1/§2.3.
 
 ### R2.T8 — AI Agent Production Readiness
 

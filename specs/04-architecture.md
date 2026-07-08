@@ -99,6 +99,7 @@ Rejected.
 | Container orchestration | docker-compose | NFR-001, REQ-011 | Helm + HA in V3 (REQ-026) |
 | Widget | Web Component + iframe (dual) | DEC-040, REQ-009 | Same JS source, two shipping modes; CSP / postMessage origin / frame-ancestors configured per §12.5 |
 | Eval | RAGAS + custom golden-set runner | DEC-016, REQ-013, REQ-014; **goldset 150-200 + 50-prompt smoke subset per DEC-078** | DeepEval CI in V2; standalone "NLI accuracy" metric per `23-evals` |
+| **Eval judge model (RAGAS faithfulness/answer_relevancy scorer)** | **`Qwen2.5-14B-Instruct` int4 (GGUF), CPU inference via `llama.cpp`** | **DEC-130; distinct vendor/family from both generation-model candidates (Meta `Llama-3.1-8B-Instruct` / Mistral AI `Mistral-Small-24B-Instruct`), satisfying `92a-stage5r2-benchmark.md` §Topic 5's non-negotiable** | Invoked only by `cli eval run` (offline/manual — weekly regression, pre-demo gate, CI, Stage 8 audit acceptance); never GPU-resident, never a docker-compose service, no query-hot-path latency budget. Distinct from the NLI verifier row above, which decouples grounding *checking* from generation, not RAGAS *judging* |
 | Observability | OpenTelemetry GenAI semantic conventions → Postgres `otel_spans` (default) | DEC-016; OTEL GenAI conventions per `92a-stage5r2-benchmark.md` §Topic 6 | OTLP exporter env-var available for customer-side collectors (§12.3); **Langfuse V2 carries roadmap risk** (acquired by ClickHouse 2026-01; self-hosted roadmap uncertain) — contingency = Phoenix Arize or LangSmith; TruLens V3 |
 | Dev rig | RunPod template + Network Volume | DEC-068 (¥800-1,200/month solo floor) / DEC-074 (¥2,000-3,000/month team envelope) | Same docker-compose image |
 
@@ -152,6 +153,8 @@ Customer pre-install conversation must confirm GPU class. `09-deployment-ops` sh
 | deberta-v3-base-mnli (NLI) | **host RAM, not VRAM (DEC-109) — excluded from GPU subtotal below** | **host RAM, not VRAM (DEC-109)** |
 | **Subtotal (all GPU-resident)** | **~18.3 GB** (was ~19.0 GB including NLI in error, DEC-109 correction) | **~22.3 GB** (was ~23.0 GB including NLI in error, DEC-109 correction) |
 | Headroom | ~5.7 GB (was ~5.0 GB pre-correction) | **~1.7 GB** (was ~1.0 GB pre-correction, DEC-109) |
+
+**RAGAS eval judge model excluded from this table (DEC-130)**: `Qwen2.5-14B-Instruct` int4 GGUF runs CPU-only via `llama.cpp`, invoked ephemerally by `cli eval run`, not as a persistent service — it never occupies VRAM and is not part of this floor-tier allocation. This is a deliberate design constraint, not an oversight: at ~1.7 GB warm-cache headroom, a GPU-resident 14B-class int4 judge (~8-9 GB) would not fit without evicting an online-serving component. Host RAM impact (~9-10 GB for Q4 quantization) is absorbed within the 64 GB floor RAM tier alongside the CPU-resident NLI model and other host-RAM services.
 
 **Co-residency rules**:
 
@@ -978,6 +981,9 @@ services:
   postgres:       # 16-alpine
   redis:          # Redis 7.x or Valkey 8.x (DEC-076)
   widget:         # nginx static
+  # No RAGAS judge-model service: Qwen2.5-14B-Instruct int4 GGUF (DEC-130) runs CPU-only via
+  # llama.cpp, invoked ephemerally by `cli eval run` — not a long-running container, and
+  # deliberately excluded from GPU residency (see §4.2.2's headroom note).
 ```
 
 Volumes: `./models/`, `./qdrant/`, `./pg/` mounted on host disk. Network: internal bridge; only `api` and `widget` expose ports. `docker compose up` to a working `/ready` 200 in ≤ 30 minutes (REQ-011).

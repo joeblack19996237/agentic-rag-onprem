@@ -22,7 +22,7 @@ This is the "are we actually done" checklist. Every gate below has a testable pa
 | VG-010 | REQ-010 (admin API) | `06-api-contracts.md`'s admin-surface contract tests | Document lifecycle, ACL edit, pagination all functional | Backend |
 | VG-011 | REQ-011 (docker-compose install) | TEST-025 | `docker compose up` to `/ready: true` (full-dependency check, DEC-117) in ≤30 min | DevOps |
 | VG-012 | REQ-012 (air-gap) | TEST-026 | 100% eval-suite pass with network namespace blocked; zero outbound calls attempted | DevOps |
-| VG-013 | REQ-013/REQ-014/REQ-049 (eval harness + golden set) | TASK-029 output | Smoke ring ≤5 min; full ring produces DEC-017-threshold pass/fail report | AI |
+| VG-013 | REQ-013/REQ-014/REQ-049 (eval harness + golden set) | TASK-029 output | Smoke ring ≤5 min; full ring produces DEC-017-threshold pass/fail report; RAGAS judge model is `Qwen2.5-14B-Instruct` (DEC-130), independently confirmed distinct from the `generate/` model on that run, with no outbound call | AI |
 | VG-014 | REQ-036 (two-layer authorization) | TEST-006, TEST-007 | Layer 1 filter + Layer 2 JIT re-check both independently verified correct | Backend |
 | VG-015 | REQ-041/REQ-057 (CDC, both transports) | TEST-009, TEST-010 | Webhook idempotency + poll-only cursor advancement both correct | Backend |
 | VG-016 | REQ-045 (ECM audit write-back) | Integration test against a stub `ECMAdapter` | Both `granted` and `denied` intents written; async, non-blocking (NFR-013) | Backend |
