@@ -34,6 +34,12 @@ Break the plan into **tracer bullet** issues. Each issue is a thin vertical slic
 
 </vertical-slice-rules>
 
+### 3.5 Gate acceptance criteria
+
+Before presenting the breakdown to the user, run the `/verifiable-acceptance-criteria` skill against every draft `## Acceptance criteria` list. Rewrite anything it flags as borrowed-artifact, borrowed-environment, or human-subjective before the slices reach Step 4 — don't show the user ACs you already know can't be closed as written.
+
+If a slice's task is TDD-Exempt in the source spec (`Verification Pattern: TDD-Exempt` in `specs/10-build-plan.md`), carry its `Verification Evidence`, `Owner Role`, and `Rollback Plan` fields into the issue — do not drop them for the sake of the bare checklist below.
+
 ### 4. Quiz the user
 
 Present the proposed breakdown as a numbered list. For each slice, show:
@@ -56,6 +62,8 @@ For each approved slice, publish a new issue to the issue tracker. Use the issue
 
 Publish issues in dependency order (blockers first) so you can reference real issue identifiers in the "Blocked by" field.
 
+If an issue's Acceptance Criteria section still contains any `[manual-verify]` item after the gate in Step 3.5, do not publish it as `ready-for-agent` alone — either split it into two issues (an agent-scoped one and a `ready-for-human` one covering the manual items), or publish the whole issue as `ready-for-human` if the manual item blocks everything else in the slice. Never publish `ready-for-agent` over an unresolved `[manual-verify]` item.
+
 <issue-template>
 ## Parent
 
@@ -70,8 +78,16 @@ Avoid specific file paths or code snippets — they go stale fast. Exception: if
 ## Acceptance criteria
 
 - [ ] Criterion 1
+      Verification: <exact command> → <expected observable output>
 - [ ] Criterion 2
-- [ ] Criterion 3
+      Verification: <exact command> → <expected observable output>
+
+## Manual verification (if any)
+
+- [ ] [manual-verify] <criterion that needs a human/DevOps action>
+      Owner: <role>. Evidence to capture: <what to record>.
+
+(Omit this section entirely if `/verifiable-acceptance-criteria` found nothing to split off.)
 
 ## Blocked by
 

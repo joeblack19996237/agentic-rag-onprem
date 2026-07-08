@@ -80,7 +80,7 @@ Five differentiators (confirmed at Stage 1; revised at Stage 5 per RC-T1-10/11; 
 | Air-gap compatible runtime (no required outbound calls) | Must | REQ-012 |
 | RAGAS-based eval harness (offline) | Must | REQ-013 |
 | End-to-end example with sample CCM-style corpus | Must | REQ-014 |
-| **LangGraph 0.2.x pipeline orchestration with typed-state graph (DEC-075)** | **Must** | **REQ-046 (added Round 2)** |
+| **LangGraph 1.2.x pipeline orchestration with typed-state graph (DEC-075, version corrected DEC-131)** | **Must** | **REQ-046 (added Round 2)** |
 | **Redis / Valkey hot-path cache + ACL TTL discipline (DEC-076)** | **Must** | **REQ-047 (added Round 2)** |
 | **Layered safety rails: `Llama Prompt Guard 2` input + `Llama Guard 3 8B` output + `NeMo Guardrails` orchestration (DEC-077)** | **Must** | **REQ-048 (added Round 2)** |
 | **Golden set 150-200 prompts with 50-prompt smoke-test subset (DEC-078)** | **Must** | **REQ-014 (amended Round 2)** |

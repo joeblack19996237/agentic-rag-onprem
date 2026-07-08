@@ -16,10 +16,23 @@ Both halves are TDD-Exempt (Infrastructure-as-Code) — correctness is verified 
 
 ## Acceptance criteria
 
-- [ ] RunPod template + Network Volume boots; model cache survives pod restart
-- [ ] A new contributor following only the dev profile reaches a working eval run in ≤ 2 hours (NFR-011 acceptance target)
-- [ ] CI pipeline is green on the scaffold commit
-- [ ] Import-graph check step exists and runs in CI (even though it has nothing to catch yet)
+- [ ] Import-graph check script exists and runs clean against the empty scaffold
+      Verification: run the check locally (the entry point this task creates) → exit 0, no violations reported (none exist yet at this stage)
+- [ ] CI workflow file(s) exist and are syntactically valid
+      Verification: `python -c "import yaml; yaml.safe_load(open('<workflow file path>'))"` (or `actionlint` if available) → no parse errors
+
+## Manual verification (if any)
+
+- [ ] [manual-verify] RunPod template + Network Volume boots; model cache survives pod restart
+      Owner: DevOps. Evidence to capture: pod boot log, plus a before/after cache-content check (file listing or checksum) across a restart. Requires a live RunPod account and credentials the current agent execution environment does not have.
+- [ ] [manual-verify] CI pipeline is green on the scaffold commit
+      Owner: whoever connects this repo to a GitHub remote with Actions enabled. Evidence to capture: `gh run list` output or the Actions tab. This repo currently has no git remote configured (`git remote -v` returns empty) and no `.github/workflows` directory — CI can't be observed as green by the agent until both exist.
+- [ ] [manual-verify] Import-graph check step runs in CI (not just locally)
+      Owner: same as above. Evidence to capture: the CI run log showing the step executed. Same blocker as above.
+
+## Success metrics (not agent-verifiable; requires a live human trial)
+
+- NFR-011 onboarding SLA: a new contributor following only the dev profile reaches a working eval run in ≤ 2 hours. This is a timed human-subject measurement, not a system behavior — no executing agent (including the one that built this) can self-verify it. Track separately, e.g. by timing an actual new contributor or external tester.
 
 ## Blocked by
 

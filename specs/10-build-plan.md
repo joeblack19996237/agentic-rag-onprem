@@ -78,7 +78,7 @@ Project scaffolding (directory structure, `pyproject.toml`, docker-compose skele
 Dependency pinning is a vendor-SDK-class task per `spec-templates.md`'s exempt-type table.
 
 #### Verification Plan
-- Pin exact versions: Python 3.12, FastAPI, LangGraph 0.2.x, vLLM, TEI client, Qdrant client, Postgres driver, Redis client (DEC-033, DEC-075, DEC-012, DEC-035, DEC-034, DEC-076)
+- Pin exact versions: Python 3.12, FastAPI, LangGraph 1.2.x, vLLM, TEI client, Qdrant client, Postgres driver, Redis client, **`llama-cpp-python`** (DEC-033, DEC-075, DEC-012, DEC-035, DEC-034, DEC-076; LangGraph version corrected DEC-131; `llama-cpp-python` added DEC-133 — DEC-130's RAGAS judge model runs on `llama.cpp`, and this was the missing link between that decision and the dependency-pinning task)
 - Smoke-import every pinned dependency in a throwaway script
 
 #### Rollback Plan
@@ -496,7 +496,7 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 - Test: constructing a `QueryGraphState` and invoking a minimal graph (`retrieve → acl → rerank → generate`, no rails/verify yet) produces a traversal matching the canonical sequence
 
 #### TDD Green
-- Implement the typed `QueryGraphState` (`04-architecture.md` §5.1.1) and the four core nodes as LangGraph 0.2.x node functions
+- Implement the typed `QueryGraphState` (`04-architecture.md` §5.1.1) and the four core nodes as LangGraph 1.2.x node functions
 
 #### TDD Refactor
 - Confirm node internals import no LangGraph primitives directly (§3.2's "framework-agnostic node internals" discipline) — verified by the same AST-based import-graph check from Phase 1, extended to check this specific rule
@@ -961,7 +961,7 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 
 **Phase**: Phase 5
 **Verification Pattern**: TDD
-**Related Requirements**: REQ-013, REQ-014, REQ-049, NFR-003 (added post-Stage-8, DEC-129), NFR-024 (added post-Stage-8, DEC-129), NFR-002 (judge model must be local/air-gap-compliant — DEC-130), DEC-017, DEC-078, DEC-130 (added post-Stage-8 — RAGAS judge model)
+**Related Requirements**: REQ-013, REQ-014, REQ-049, NFR-003 (added post-Stage-8, DEC-129), NFR-024 (added post-Stage-8, DEC-129), NFR-002 (judge model must be local/air-gap-compliant — DEC-130), DEC-017, DEC-078, DEC-130 (added post-Stage-8 — RAGAS judge model), DEC-133 (added post-Stage-8 — judge model dependency/weight-presence closure)
 **Owner Role**: AI
 **Dependencies**: TASK-024
 **Team-path**: ~8 days (includes the ~15d golden-set curation from DEC-080's estimate, split between this task's harness build and the actual prompt-writing effort, which is manual curation work rather than a build task per se) | **Solo-path**: ~15 days
@@ -983,10 +983,12 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 - [ ] Eval report includes cost-per-turn mean/p95 (NFR-024)
 - [ ] English-only golden set passes MVP thresholds (NFR-003 — the schema-neutrality half of NFR-003 is TASK-007's concern, not this task's)
 - [ ] RAGAS judge model is `Qwen2.5-14B-Instruct` (DEC-130) — config/code inspection confirms the judge invocation targets a distinct local model, not the `generate/` vLLM endpoint, and makes no outbound network call (NFR-002)
+- [ ] Judge model GGUF weights are present in the model cache and loadable via `llama.cpp` before the eval run proceeds (DEC-133) — a missing weight file fails fast with a clear error, not a silent fallback to some other model (which would quietly reintroduce the self-evaluation-bias anti-pattern DEC-130 exists to prevent)
 
 #### Verification Evidence
 - Eval run report (both rings), including cost-per-turn summary (NFR-024, TEST-039)
 - Judge-model independence check: eval-run trace or config dump showing the judge model identifier differs from the generation model identifier for that run
+- Judge-model weight-presence check: a startup check (or first-run script) confirming the GGUF file loads via `llama-cpp-python`, with its failure mode being an explicit error, not a fallback (DEC-133)
 
 ## Phase 6: End-to-End Verification and Release Readiness
 

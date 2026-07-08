@@ -46,6 +46,8 @@ RIGHT (vertical):
 
 When exploring the codebase, read `CONTEXT.md` (if it exists) so that test names and interface vocabulary match the project's domain language, and respect ADRs in the area you're touching.
 
+If the interface under test belongs to a fast-moving or pre-1.0 dependency, check current behavior via the official docs (WebFetch) before writing the test rather than trusting training-data recall — it goes stale faster than these libraries move. See `/implement`'s equivalent rule for a concrete case where this went wrong in this project (`specs/13-decision-log.md` DEC-131).
+
 Before writing any code:
 
 - [ ] Confirm with user what interface changes are needed

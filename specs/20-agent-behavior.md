@@ -6,7 +6,7 @@
 
 ## 1. Plain-English summary
 
-> **Round 2 supersede (DEC-075 + DEC-077, 2026-06-29)**: The MVP pipeline is now expressed as a **LangGraph 0.2.x typed-state graph** with explicit safety-rail nodes. The MVP graph runs **one-shot** (no cyclic feedback edges enabled) and so remains "not a multi-step agent" by behavior; V2 enables the feedback edge from `verify/` back to `generate/` (REQ-020) and the ReAct branch. The single-turn anti-hallucination guarantee is preserved.
+> **Round 2 supersede (DEC-075 + DEC-077, 2026-06-29)**: The MVP pipeline is now expressed as a **LangGraph 1.2.x typed-state graph** (version corrected 2026-07-08, DEC-131) with explicit safety-rail nodes. The MVP graph runs **one-shot** (no cyclic feedback edges enabled) and so remains "not a multi-step agent" by behavior; V2 enables the feedback edge from `verify/` back to `generate/` (REQ-020) and the ReAct branch. The single-turn anti-hallucination guarantee is preserved.
 
 In the MVP, GroundedDocs is **not a multi-step agent**. It is a single graph traversal: input-rail check → one retrieval → ACL trim → rerank → one generation → output-rail check → one verification → one audit. Refusal is a typed product response, not an error. This deliberate narrowness is the anti-hallucination foundation — every assertion ships through `verify/`, and the model never decides on its own to take a second action.
 
