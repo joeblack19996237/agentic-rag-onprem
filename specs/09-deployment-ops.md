@@ -109,6 +109,7 @@ See `07-database.md`'s Migrations sections (Postgres: Alembic, additive-only on 
 
 - **MVP scaling ceiling is single-host, single-GPU** — the concurrency model (`04-architecture.md` §9.4) is the honest ceiling: 2 in-flight cold-cache floor, 5-8 in-flight warm-cache target
 - **V3 trigger thresholds** (already named in `02-requirements.md` REQ-026): corpus > 10M chunks, sustained concurrency > 8 in-flight, or > 3 concurrent customer-pilot deployments — any one of these is the signal to revisit the single-host architecture, not a signal to prematurely add Kubernetes now
+- **Trace-sampling re-evaluation (DEC-128)**: `08-observability-logs.md` persists 100% of query traces at MVP, which assumes the warm-cache concurrency ceiling above (5-8 in-flight) holds. The same "sustained concurrency > 8 in-flight" trigger above is also the signal to revisit whether 100% trace persistence remains viable, or whether persistence-level sampling should be introduced — no separate threshold is defined for this, since it's the same underlying load condition
 - **Comfort-tier (32 GB) hardware is the near-term scaling lever** within MVP's single-host ceiling — sizing up the GPU, not re-architecting, is the first scaling move a customer should make
 
 ## Backup and Restore
@@ -189,4 +190,4 @@ Per DEC-062: replace the static JWKS bundle file at `config/jwks_static`, restar
 
 ## Decision References
 
-DEC-020, DEC-021, DEC-027, DEC-062, DEC-066, DEC-067, DEC-068, DEC-074, DEC-077, DEC-079, DEC-086, DEC-093, DEC-097, DEC-101, DEC-102, DEC-109
+DEC-020, DEC-021, DEC-027, DEC-062, DEC-066, DEC-067, DEC-068, DEC-074, DEC-077, DEC-079, DEC-086, DEC-093, DEC-097, DEC-101, DEC-102, DEC-109, DEC-128

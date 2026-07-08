@@ -64,6 +64,7 @@ This mirrors — and is the prompt-content instance of — the DEC-109 quality-g
 - **Immutable per version** — an existing version's `body` is never edited in place; a content change is always a new version row
 - **Access**: read by `generate/` at prompt-assembly time (cached in Redis per `04-architecture.md` §4.1's prompt-cache row, invalidated on version rotation); written/versioned only via the admin surface (`config/` — V2 exposes this via an admin API per REQ-022; MVP's single default template is set at install time, not runtime-editable through an API in MVP)
 - **No prompt content is ever logged at INFO level as part of operational logs** (NFR-008 discipline, carried here) — the prompt *version ID* is safe to log; the prompt *body* is not routinely logged outside `DEBUG` or the `audit_events.context_fingerprint`'s `prompt_template_id` reference (which is an ID, not the body text itself)
+- **Also carried on the trace, not just the audit record (NFR-033, DEC-128)**: the active `prompt_version` is now a root-span attribute in `08-observability-logs.md`'s Span Structure, alongside the other four version identifiers already in `context_fingerprint`. This closes the gap where a post-deploy quality regression could not be correlated to a specific prompt version without opening `audit_events` — the version ID is safe on the trace for the same reason it's safe to log: it's an identifier, not the prompt body
 
 ## Dependencies
 
@@ -71,8 +72,9 @@ This mirrors — and is the prompt-content instance of — the DEC-109 quality-g
 - `04-architecture.md` §5.1.1 (`audit_fingerprint` reducer carrying `prompt_template_id` per node touch), §12.2 (structural-separator prompt-injection defense, part of `default-v1`'s content)
 - `23-evals-guardrails.md` §2.2 (golden-set rings this file's promotion gate reuses), §3.3 (the `context_fingerprint` example this file's version table reconciles against)
 - `05-data-model.md` / `07-database.md` (`prompt_templates` entity + schema)
-- `02-requirements.md` REQ-022 (V2 per-customer registry — this file's MVP inventory is the schema/discipline foundation REQ-022 builds on)
+- `02-requirements.md` REQ-022 (V2 per-customer registry — this file's MVP inventory is the schema/discipline foundation REQ-022 builds on), NFR-033 (`prompt_version` as a trace attribute)
+- `08-observability-logs.md` (Span Structure — where `prompt_version` now also lives, per NFR-033/DEC-128)
 
 ## Decision References
 
-DEC-042, DEC-060, DEC-069, DEC-078, DEC-089, DEC-109
+DEC-042, DEC-060, DEC-069, DEC-078, DEC-089, DEC-109, DEC-128

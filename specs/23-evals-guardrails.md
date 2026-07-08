@@ -60,7 +60,7 @@ Plus four product-specific metrics (RAGAS does not cover):
 
 Sample corpus = English CCM-style synthetic documents (insurance letter templates, claims-FAQ docs, billing-notice templates) representative of AU/NZ market vocabulary per DEC-072. Smoke set drafted with REQ-014; expansion drafted under DEC-078 (estimated ~2-3 weeks manual curation at the DEC-073 team envelope).
 
-**Sampling rates for production traces** (per `92a-stage5r2-benchmark.md` §Topic 5 default): 5-10% of production queries are sampled into the trace store; weekly human review covers 50-100 sampled traces. Human-reviewed traces with disagreements promote into the customer-specific golden set (REQ-023 V2).
+**Sampling rate for weekly human trace review** (per `92a-stage5r2-benchmark.md` §Topic 5 default; wording corrected 2026-07-08, DEC-128 — see below): 5-10% of production queries, already fully persisted into `otel_spans` (`08-observability-logs.md`'s Traces section persists 100% of queries at MVP), are pulled into weekly human review; that review covers 50-100 sampled traces. Human-reviewed traces with disagreements promote into the customer-specific golden set (REQ-023 V2). **Clarification (DEC-128)**: the "5-10%" figure was previously ambiguous — it could be misread as meaning only 5-10% of queries get a trace persisted at all, which would break `08-observability-logs.md`'s Incident Investigation examples (they assume any query's trace is pullable by `request_id`). It refers only to the review-sampling step above; persistence itself is not sampled at MVP.
 
 ### 2.3 Runner
 
@@ -154,7 +154,7 @@ This is **forensics** for LCC service (DEC-028 Tier 3 migration evidence), for h
 | Customer first install | Run REQ-014 sample golden set → record baseline → tune thresholds if any metric < DEC-017 floor |
 | Customer-specific golden set added | Re-baseline against customer set (V2) |
 | Model upgrade (LCC Tier 3) | Re-baseline against both default and customer golden set; promote new thresholds atomically with model swap |
-| Quarterly LCC review | Sample 50 random production answers, manual-grade hallucination rate, retune refusal threshold if hallucination rate drift > 0.5% |
+| Quarterly LCC review | Sample 50 random production answers, manual-grade hallucination rate, retune refusal threshold if hallucination rate drift > 0.5%. **Trace-to-regression promotion (MVP, DEC-128)**: if a sampled answer reveals a genuine gap in the standard golden set (not a corpus-specific one-off), add it as a new smoke- or full-ring prompt tagged with its source `request_id` — see `08-observability-logs.md`'s Trace-to-Regression Promotion section |
 
 ## 7. Customer onboarding runbook (per RC-T6-01) *(renumbered from duplicate "§6" — 2026-07-05 review finding, DEC-099)*
 
@@ -165,7 +165,7 @@ When a customer corpus drives refusal rate above ~30% on first install — a for
 1. **Run the golden set on the customer corpus** — if refusal rate is comparably high on the standard golden set, the issue is environmental (model serving / config). If only the customer corpus is high, continue.
 2. **Inspect the failed-question detail report** — group failures by trigger (no_recall vs low_grounding vs verification_unavailable). Each trigger has a different fix.
 3. **For `no_recall` cluster** — sample 10 failed questions; manually verify whether the corpus actually contains the answer. If yes: retrieval problem. If no: customer needs to add docs (corpus-gap, not a system problem).
-4. **For `low_grounding` cluster** — sample failed pairs and read the NLI scores. If most scores are < 0.5 by a small margin (0.3-0.5), the threshold may be miscalibrated. If scores are < 0.2, the retrieval brought back irrelevant chunks (a precision problem, not NLI).
+4. **For `low_grounding` cluster** — sample failed pairs and read the NLI scores. If most scores are < 0.5 by a small margin (0.3-0.5), the threshold may be miscalibrated. If scores are < 0.2, the retrieval brought back irrelevant chunks (a precision problem, not NLI). **The `nli_entailment_score` histogram metric (`08-observability-logs.md`, NFR-033/DEC-128) shows this distribution directly** — check whether the whole distribution shifted (a real regression) or only a few outliers are borderline (normal variance), instead of inferring the shape from a manual sample of failed pairs alone.
 5. **For `verification_unavailable` cluster** — check ECM PDP health metric and NLI service health metric. This is typically an ops issue, not a tuning issue.
 
 ### 7.2 Tuning levers (in order of try-first)
@@ -207,3 +207,4 @@ Answered in Stage 5 architecture review memos.
 | Audit fingerprint schema | `05-data-model.md` (Stage 7) |
 | LCC service tiers | `13-decision-log.md` DEC-028 |
 | Prompt templates | `24-prompt-registry.md` |
+| Domain-specific span attributes, `nli_entailment_score` histogram, trace sampling, trace-to-regression promotion | `08-observability-logs.md` (NFR-033, DEC-128) |

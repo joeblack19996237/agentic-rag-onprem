@@ -20,10 +20,11 @@ Purpose: let a reviewer (human or Claude) know *what's where* and *which DEC/REQ
 | [06-api-contracts.md](06-api-contracts.md) | stub, added 2026-07-05 | Endpoint enumeration (Query/Ingest/Admin/Operational surfaces); placeholder shapes only, full schema is Stage 6 | DEC-107, REQ-057 |
 | [20-agent-behavior.md](20-agent-behavior.md) | 13K / 203 lines | Turn pipeline (LangGraph), model permissions, V2 ReAct fallback, review queue, failure/refusal taxonomy | DEC-039, DEC-042, DEC-058, DEC-075, DEC-077, DEC-082, REQ-015, REQ-016, REQ-027 |
 
-### Group C — Evals & Guardrails
+### Group C — Evals, Guardrails & Observability
 | File | Size | Covers | Key ids |
 |---|---|---|---|
-| [23-evals-guardrails.md](23-evals-guardrails.md) | 14K / 198 lines | RAGAS metrics/thresholds, golden set, eval runner + failure routing, prompt-injection & output guardrails, context fingerprint, onboarding runbook | DEC-017, DEC-052, DEC-060, DEC-078, REQ-014, REQ-035, RC-T6-01 |
+| [23-evals-guardrails.md](23-evals-guardrails.md) | 14K / 198 lines | RAGAS metrics/thresholds, golden set, eval runner + failure routing, prompt-injection & output guardrails, context fingerprint, onboarding runbook | DEC-017, DEC-052, DEC-060, DEC-078, REQ-014, REQ-035, RC-T6-01, DEC-128 |
+| [08-observability-logs.md](08-observability-logs.md) | ~17K | Log/metric/trace/dashboard/alert schema, SLOs; domain-specific span attributes + `nli_entailment_score` histogram + trace sampling + trace-to-regression path (added post-Stage-8) | DEC-016, DEC-109, NFR-026, NFR-033, DEC-128 |
 
 ### Group D — Decision Log (canonical, cross-cutting)
 | File | Size | Covers |
@@ -92,7 +93,7 @@ Slot-00 filename note: this project retains `00-index.md` as its stable slot-00 
 | 05 | `05-data-model.md` | ~31 KB | `legal_hold_invalidation_events` entity (no new REQ/DEC) | `04-architecture.md` §6, §7B.3-§7B.10 |
 | 06 | `06-api-contracts.md` | ~21 KB | None new — expanded from DEC-107 stub; resolved the stub's sync/async eval open question | `04-architecture.md` §7, `05-data-model.md` |
 | 07 | `07-database.md` | ~21 KB | None new | `05-data-model.md` (physical schema derivation) |
-| 08 | `08-observability-logs.md` | ~16 KB | None new | `04-architecture.md` §12, `90-stage1-trend-research.md` §3.3 |
+| 08 | `08-observability-logs.md` | ~17 KB (grew post-Stage-8) | NFR-033 (added 2026-07-08, DEC-128 — domain-specific span attributes, `nli_entailment_score` histogram) | `04-architecture.md` §12, `90-stage1-trend-research.md` §3.3, `92a-stage5r2-benchmark.md` §Topic 6, `23-evals-guardrails.md` §2.2/§6/§7 |
 | 09 | `09-deployment-ops.md` | ~24 KB | None new — closes RC-T3-01/RC-T4-02/RC-T6-02 | `04-architecture.md` §4.2/§9 |
 | 22 | `22-memory-context.md` | ~12 KB | None new | `20-agent-behavior.md` §2.4, `05-data-model.md` |
 | 24 | `24-prompt-registry.md` | ~10 KB | None new — establishes the going-forward prompt-changelog discipline | `04-architecture.md` §5.1.1/§8.2, `23-evals-guardrails.md` §3.3 |
@@ -122,3 +123,18 @@ Every `REQ-###`/`NFR-###`/`RISK-###`/`DEC-###` referenced across the 13 Stage 7 
 | 40 | `40-migration.md` | `SKIP-NOT-APPLICABLE` | This is a greenfield product build, not a migration of an existing GroundedDocs deployment to a new state. The brownfield-adjacent concern this slot exists for — installing *into* a host ECM/CCM system — is covered by `41-integration-contracts.md` (external-system integration) and `04-architecture.md` §7B (ECM/CCM federation), not a self-migration. Revisit if a future major-version migration (e.g. a breaking schema change requiring an existing customer install to migrate) is scoped |
 | 50 | `50-analytics-events.md` | `SKIP-NOT-APPLICABLE` | GroundedDocs is not a product-analytics/growth-metrics surface — there is no self-serve funnel, no growth dashboard, no product-analytics event taxonomy to define. The operational telemetry this slot might otherwise cover (query latency, cache hit ratios, refusal rate, citation hit-rate) is already fully specified as OTel GenAI-convention spans + audit events in `04-architecture.md` §12.3 and is expanded in `08-observability-logs.md` (this phase) — a separate analytics-event catalog would duplicate that without adding a distinct concern (no marketing/growth/conversion funnel exists in a single-tenant on-prem B2B2B product) |
 | 51 | `51-data-pipeline.md` | `SKIP-COVERED-ELSEWHERE` | The only data pipeline in this product is the document ingest pipeline (parse → chunk → embed → index, REQ-002) plus the CDC sync pipeline (ECM → RAG, DEC-051/DEC-102) — both are already fully specified as first-class workflows in `04-architecture.md` §5/§7B and are expanded as system workflows in `03-workflows.md` (this phase) and as schema/migration detail in `07-database.md` (this phase). A separate data-pipeline spec would duplicate rather than add a distinct data-engineering concern (there is no separate analytics ETL, data lake, or warehouse pipeline in this product) |
+
+## Registering a new spec slot
+
+This index is the map every downstream skill, subagent, and reviewer uses to find what exists. A spec file that isn't registered here is effectively invisible to them — treat registration as part of "done," not follow-up cleanup.
+
+When a new file is added under `specs/` (a previously-skipped slot gets un-skipped, a new conditional slot activates, or an existing slot gets a real successor), do all of the following in the same change:
+
+1. **Assign the slot number** from the stable slot map in `.claude/skills/idea-to-specs/references/spec-catalog.md`. Never renumber an existing slot to make room — skipped slots stay skipped, per that catalog's own rule.
+2. **Add a row to the matching Review group table** (A–E above). If the file doesn't fit an existing group's theme, add a new group letter (continue the sequence, e.g. `F`) rather than forcing a mismatched fit.
+3. **Move it out of the Skipped table** under "Stage 6 — Selected / Skipped Specs" if it was previously listed there, and add it to the "Selected — Generated" table instead, with slot, file, size, key IDs introduced, and what it traces to.
+4. **Cross-check new IDs.** If the file mints new `REQ-### / NFR-### / RISK-### / DEC-### / TASK-### / TEST-### / VG-###` ids, confirm they don't collide with existing ones and that `REQ`/`NFR`/`RISK`/`DEC` ids are mirrored into `02-requirements.md` / `13-decision-log.md` as those two files remain canonical for their respective namespaces.
+5. **Propagate outside `specs/`.** Update the Layer 1 file listing in `docs/agents/domain.md` and, if the file is now part of the always-read core set, the `### Product specs` section of the repo root `CLAUDE.md`. Downstream skills (`to-prd`, `to-issues`, `implement`, `triage`) read those two files directly — they do not parse `00-index.md` on their own, so an update here alone does not make the new file discoverable to them.
+6. **If the new file supersedes or alters an existing `DEC-###` / `REQ-###`**, follow the root `CLAUDE.md` instruction: append a supersedes entry to `13-decision-log.md`, check whether anything in `docs/adr/` needs superseding, and verify whether any in-flight feature under `.scratch/` is affected.
+
+Skipping any of these steps is how this index drifts from the actual directory contents — the failure mode `00-index.md`'s own opening line (`13-decision-log.md` wins if a file disagrees with it) exists to catch for decisions, but has no equivalent safety net for undiscoverable files.

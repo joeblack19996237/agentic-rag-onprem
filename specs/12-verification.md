@@ -42,6 +42,7 @@ This is the "are we actually done" checklist. Every gate below has a testable pa
 | VG-030 | Round 6 DEC-117 fix (`/ready` full-dependency check) | TEST-025, `06-api-contracts.md`'s `/ready` contract test | `/ready` aggregates all 10 backend services, not just `api/` | DevOps |
 | VG-031 | REQ-037 (retention-state capture at ingest) | TEST-035 | `retention_state` correctly captured at ingest and enforced as a Qdrant filter at retrieval | Backend |
 | VG-032 | REQ-043 (audit-pull NDJSON endpoint) | TEST-037 | NDJSON pull endpoint idempotent and correctly cursor-paginated across repeated pulls | Backend |
+| VG-033 | NFR-033 (domain-specific span attributes, DEC-128) | TEST-038 | Trace carries the full domain-specific attribute set (retrieve/rerank/verify per-span + root-span version identifiers), values consistent with the same query's `audit_events` row, no raw content present | Backend |
 
 ## Demo Script
 

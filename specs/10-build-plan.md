@@ -899,26 +899,31 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 
 **Phase**: Phase 5
 **Verification Pattern**: TDD
-**Related Requirements**: NFR-026
+**Related Requirements**: NFR-026, NFR-033 (added post-Stage-8, DEC-128)
 **Owner Role**: Backend
 **Dependencies**: TASK-011
 **Team-path**: ~4 days | **Solo-path**: ~7 days
 
 #### TDD Red
-- Test: a query's trace shows the full span tree from `08-observability-logs.md`'s Span Structure, with all required GenAI attributes present
+- Test: a query's trace shows the full span tree from `08-observability-logs.md`'s Span Structure, with all required GenAI attributes (NFR-026) present
+- Test (added, NFR-033): the same trace's `retrieve`/`rerank`/`verify` spans carry their respective domain-specific attributes (`candidate_count`/`retrieval_top1_score`; `rerank_score_delta`/`top_k`; `mechanical_fast_path`/`nli_slow_path` verdict + per-claim NLI scores), and the root span carries the five version identifiers (`prompt_version`, `embedding_model_version`, `reranker_model_version`, `safety_input_version`, `safety_output_version`)
 
 #### TDD Green
-- Implement OTel spans per node, `otel_spans` persistence, OTLP exporter config
+- Implement OTel spans per node, `otel_spans` persistence, OTLP exporter config, NFR-033's domain-specific span attributes, and the `nli_entailment_score` histogram metric
 
 #### TDD Refactor
-- Extract per-node span lifecycle (start span, set GenAI attributes, end span, persist to `otel_spans`) into a single instrumentation wrapper applied uniformly across graph nodes, rather than each node hand-rolling its own span calls — gives TASK-018's parallel-fan-out span-structure check (NFR-029) one place to guarantee correct parent/child linkage instead of trusting every node author to wire it correctly
+- Extract per-node span lifecycle (start span, set GenAI attributes, end span, persist to `otel_spans`) into a single instrumentation wrapper applied uniformly across graph nodes, rather than each node hand-rolling its own span calls — gives TASK-018's parallel-fan-out span-structure check (NFR-029) one place to guarantee correct parent/child linkage instead of trusting every node author to wire it correctly (DEC-127)
+- Within that wrapper, extract per-node **domain-specific** attribute collection (NFR-033's set) into its own shared helper, separate from the generic GenAI-attribute step above, rather than duplicating attribute-setting logic in each of `retrieve`/`rerank`/`verify` — keeps the generic-vs-domain-specific attribute split (NFR-026 vs NFR-033) enforced in one place instead of per-node, so a future sixth domain attribute only needs one edit (DEC-128)
 
 #### Acceptance Criteria
 - [ ] Span tree matches the documented structure
+- [ ] All NFR-026 GenAI attributes present
+- [ ] All NFR-033 domain-specific and version attributes present (retrieve/rerank/verify per-span, plus root-span version identifiers)
+- [ ] `nli_entailment_score` histogram metric emitted and queryable
 - [ ] OTLP export verified against a test collector
 
 #### Verification Evidence
-- Trace export test output
+- Trace export test output, including a span-attribute assertion covering both NFR-026 and NFR-033
 
 ### TASK-028: Alerts + Dashboards
 

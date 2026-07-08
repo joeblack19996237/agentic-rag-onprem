@@ -1,6 +1,8 @@
 # 08 — Observability, Logs, and Alerts
 
 > Stage 7 (`spec-writer`) deliverable. Expands `04-architecture.md` §12.3-§12.4's observability sketch into full log schema, metrics, traces, dashboards, alerts, and SLOs. Follows the OpenTelemetry GenAI semantic conventions already chosen at Stage 1 (`90-stage1-trend-research.md` §3.3) and pinned at Stage 4 (DEC-016, NFR-026).
+>
+> **Post-Stage-8 update (DEC-128, NFR-033, 2026-07-08)**: the span structure below originally carried only generic GenAI attributes, which support latency diagnosis but not accuracy diagnosis. Domain-specific attributes, an `nli_entailment_score` histogram, a reconciled sampling statement, and a trace-to-regression-test path were added — see the Span Structure, Metrics, and Traces sections below.
 
 ## Plain-English Summary
 
@@ -63,6 +65,7 @@ Full schema is `05-data-model.md`'s `audit_events` entity — not duplicated her
 | `gen_ai.request.duration` | Histogram | `node_name`, `model_adapter` | Per-node latency, OTel GenAI convention |
 | `gen_ai.usage.prompt_tokens` / `gen_ai.usage.completion_tokens` | Counter | `model_adapter`, `model_version` | NFR-026 |
 | `retrieval_top1_score` | Histogram | — | `retrieve/` node |
+| `nli_entailment_score` | Histogram | `path` (`mechanical_fast_path`/`nli_slow_path`) | `verify/` node (NFR-033, DEC-128) — the score *distribution* behind `citation_hit_rate`'s pass/fail rate; `23-evals-guardrails.md` §7's threshold-tuning runbook reads this to see how much margin passing queries have, not just whether they passed |
 | `citation_hit_rate` | Gauge (rolling window) | — | `verify/` node; should read 100% at all times — any deviation is itself alertable, not just a dashboard number |
 | `refusal_rate` | Gauge (rolling window) | `refusal_reason` | `verify/`/`api/` |
 | `cache_hit_ratio` | Gauge | `cache_type` (`prompt`, `answer`, `acl`, `embedding`) | `cache/`, per DEC-076 |
@@ -96,12 +99,28 @@ gen_ai.request (root span, request_id)
 
 Required attributes per span: `gen_ai.system`, `gen_ai.request.model`, `gen_ai.response.model`, `gen_ai.usage.prompt_tokens`, `gen_ai.usage.completion_tokens`, `gen_ai.response.finish_reasons` (NFR-026). Feedback-edge invocations (V2) nest as child spans of `verify` carrying a `gen_ai.iteration` attribute.
 
+**Domain-specific attributes (NFR-033, DEC-128)** — added because the generic GenAI set above lets a trace diagnose *latency* but says nothing about *why an answer's quality was off*, which previously forced every accuracy investigation into `audit_events` even though that store's stated job is "what happened," not "why":
+
+| Span | Attribute | Purpose |
+|---|---|---|
+| `retrieve` | `candidate_count`, `retrieval_top1_score` | How many candidates came back and how strong the top match was, without opening `audit_events` |
+| `rerank` | `rerank_score_delta` (top-1 score before vs. after rerank), `top_k` | Whether reranking materially changed the ranking, and at what candidate-set size |
+| `verify` | `mechanical_fast_path`/`nli_slow_path` verdict; per-claim NLI entailment score array (present only when `nli_slow_path` ran) | Localizes a `low_grounding` refusal to a specific claim and score, not just a binary pass/fail |
+| root `gen_ai.request` | `prompt_version`, `embedding_model_version`, `reranker_model_version`, `safety_input_version`, `safety_output_version` | Mirrors `audit_events.context_fingerprint` (DEC-060/DEC-089) so "did quality change after a release" is answerable from traces alone, without cross-referencing content-bearing audit records |
+
+All of these are scores, counts, or version strings — never raw query/chunk/answer text. See Privacy Rules below for why this doesn't reopen the no-content-in-traces rule.
+
 ### Storage and Export
 
 - **Default**: persisted to Postgres `otel_spans` (`07-database.md`), no separate observability stack required for MVP
+- **Sampling: 100% of queries at MVP (DEC-128), not a persistence-time sample.** Every query's trace is pullable by `request_id` — required for the Incident Investigation examples below to hold in general, not just for a sampled subset. This is distinct from the smaller sample of *already-persisted* traces pulled into weekly human quality review (`23-evals-guardrails.md` §2.2, 5-10% of production queries) — that sampling happens downstream of persistence, for review/golden-set-candidate purposes, not to decide whether a trace exists at all. **Re-evaluation trigger**: if sustained concurrency grows past the DEC-066 cold-cache floor / NFR-005 warm-cache range this MVP posture assumes, revisit whether 100% persistence remains viable or whether persistence-level sampling should be introduced.
 - **Retention**: 30-90 days, admin-configurable (DEC-109) — explicitly shorter than and independent from `audit_events`'s forever retention
 - **OTLP export**: configurable via `OTEL_EXPORTER_OTLP_ENDPOINT` env var; a customer's own Datadog/Grafana/Splunk collector receives the same span tree with no GroundedDocs-specific translation needed, since the spans are already OTel-GenAI-conformant
 - **V2 dedicated tool**: Langfuse self-hosted was the original V2 pick (DEC-016); carries roadmap risk following ClickHouse's 2026-01 acquisition (§12.3). Named contingencies: Phoenix Arize, LangSmith, or OTEL-only with custom Grafana dashboards — no V2 commitment is made in this file beyond naming the contingency path, since the MVP default (Postgres `otel_spans` + OTLP export) does not depend on which V2 tool is eventually chosen
+
+### Trace-to-Regression Promotion (MVP, DEC-128)
+
+A production trace that reveals a genuine quality gap should be able to become a permanent regression test, not just a one-off diagnosis — this is standard practice for a system whose correctness is measured against a golden set rather than unit-tested line by line. `23-evals-guardrails.md` §2.2 already documents an automated version of this for the **V2 customer-specific golden set** (REQ-023): human-reviewed traces with disagreements promote automatically. MVP does not have that tooling yet, so it reuses an existing manual process instead of waiting for it: `23-evals-guardrails.md` §6's "Quarterly LCC review" already samples 50 production answers for manual grading — when that review turns up an answer that exposes a real gap in the standard golden set (not just a corpus-specific one-off), add it as a new smoke- or full-ring prompt, tagged with its source `request_id` so the originating trace stays traceable. No new build task or infrastructure is required; this is a documented step added to an already-scheduled review.
 
 ## Dashboards
 
@@ -136,7 +155,7 @@ Each alert above cross-references `09-deployment-ops.md` (this phase) for the co
 ## Privacy Rules for Logs
 
 - Operational logs (this file's log schema): query/chunk/answer content forbidden above `DEBUG`; `DEBUG` disabled by default in production
-- Traces (`otel_spans`): span attributes follow the OTel GenAI convention's own field set (token counts, model identifiers, latencies) — none of which include raw query/answer text; a trace should never need to carry content, since content lives in `audit_events`
+- Traces (`otel_spans`): span attributes follow the OTel GenAI convention's own field set (token counts, model identifiers, latencies) plus the domain-specific set added by NFR-033/DEC-128 (candidate counts, rerank score deltas, per-claim NLI scores, mechanical/nli_slow_path verdict, version identifiers) — none of which include raw query/answer text; a trace should never need to carry content, since content lives in `audit_events`
 - Dashboards: no dashboard in this file displays raw query or answer text; the Quality dashboard's `refusal_rate by class` is a count, not a content sample
 
 ## Incident Investigation Examples
@@ -149,15 +168,23 @@ Each alert above cross-references `09-deployment-ops.md` (this phase) for the co
 **Example 2 — "Citation hit-rate dashboard shows 99.7%, not 100%."**
 This should not happen — treat as Critical per the alert table above, not as "close enough." Pull the specific `audit_events` rows where `verification_result.mechanical_fast_path` failed; since NFR-004 is a hard gate enforced in code, a sub-100% reading over any real time window indicates either (a) a code regression in the mechanical check, or (b) a measurement/dashboard bug undercounting refused turns as failures. Escalate to architecture review, not threshold retuning — this is explicitly not a `23-evals-guardrails.md` §7 tuning-lever scenario (that runbook is for `low_grounding`/`no_recall` clusters, not for the citation hit-rate hard gate itself).
 
+**Example 3 — "Refusal rate crept up after last week's deploy — which claim is failing, and was it the deploy?"** (NFR-033, DEC-128)
+1. Pull a handful of the newly-refused queries' traces via `request_id` — no need to open `audit_events` first
+2. Check the root span's `prompt_version`/`embedding_model_version`/`reranker_model_version` against last week's known-good values — if any changed, that's the first suspect, confirmed without a separate deploy-log cross-reference
+3. On the `verify` span, read the per-claim NLI scores directly: scores clustered just under the 0.5 threshold (e.g. 0.3-0.49) point to a miscalibrated threshold — the same diagnosis `23-evals-guardrails.md` §7.1 step 4 already describes, now reachable from the trace instead of requiring a manual `audit_events` sample
+4. Cross-check against the `nli_entailment_score` histogram (Metrics) for the affected time window — a visible leftward shift in the whole distribution (not just individual borderline cases) points to a real regression, not query-mix noise
+
 ## Dependencies
 
 - `04-architecture.md` §12.1-§12.5 (refusal policy, prompt-injection defense, observability sketch, logging discipline, threat model — this file expands §12.3/§12.4 specifically)
 - `90-stage1-trend-research.md` §3.3 (OTel GenAI convention adoption rationale)
+- `92a-stage5r2-benchmark.md` §Topic 6 (the 2026 mature-practice span-attribute research this file's domain-specific attributes, NFR-033/DEC-128, close the gap against)
 - `05-data-model.md` (`audit_events`, `otel_spans`, `legal_hold_invalidation_events` entities)
-- `07-database.md` (physical retention mechanics for `otel_spans` vs `audit_events`)
+- `07-database.md` (physical retention mechanics for `otel_spans` vs `audit_events`; `otel_spans.attributes` is JSONB, so the new domain-specific attributes require no schema migration)
 - `09-deployment-ops.md` (this phase — concrete runbooks this file's alerts point to)
-- `13-decision-log.md` DEC-016, DEC-042, DEC-060, DEC-063, DEC-066, DEC-070, DEC-076, DEC-082, DEC-096, DEC-097, DEC-102, DEC-106, DEC-109, DEC-116
+- `23-evals-guardrails.md` §2.2 (sampling reconciliation), §6 (Trace-to-Regression Promotion), §7 (`nli_entailment_score` histogram feeding the threshold-tuning runbook)
+- `13-decision-log.md` DEC-016, DEC-042, DEC-060, DEC-063, DEC-066, DEC-070, DEC-076, DEC-082, DEC-096, DEC-097, DEC-102, DEC-106, DEC-109, DEC-116, DEC-128
 
 ## Decision References
 
-DEC-016, DEC-042, DEC-060, DEC-063, DEC-066, DEC-070, DEC-076, DEC-082, DEC-096, DEC-097, DEC-102, DEC-106, DEC-109, DEC-116
+DEC-016, DEC-042, DEC-060, DEC-063, DEC-066, DEC-070, DEC-076, DEC-082, DEC-096, DEC-097, DEC-102, DEC-106, DEC-109, DEC-116, DEC-128
