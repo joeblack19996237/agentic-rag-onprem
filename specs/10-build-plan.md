@@ -207,7 +207,7 @@ Schema migrations are the DB-migration exempt type.
 
 **Phase**: Phase 2
 **Verification Pattern**: TDD-Exempt — Infrastructure-as-Code
-**Related Requirements**: REQ-003, DEC-059, DEC-086
+**Related Requirements**: REQ-003, NFR-003 (added post-Stage-8, DEC-129), DEC-059, DEC-086
 **Owner Role**: Backend
 **Dependencies**: TASK-001
 **Team-path**: ~2 days | **Solo-path**: ~4 days
@@ -218,6 +218,7 @@ Schema migrations are the DB-migration exempt type.
 #### Verification Plan
 - Collection created per the `<corpus_id>_<embedding_model_version>` naming convention
 - Mandatory payload indexes created before any ingest (`07-database.md`'s Payload Indexes table) — verified by a `gpu-check`-analogous script confirming index existence
+- **NFR-003 schema-neutrality review (added post-Stage-8)**: inspect the `chunks` payload schema for hardcoded English-only field names or assumptions (e.g. a field named `english_text` instead of `text`, or a tokenizer config baked into the schema rather than the embedding-model config) — the collection schema must not block a future multilingual extension even though MVP content is English-only (NFR-003)
 
 #### Rollback Plan
 **(Added 2026-07-06, Stage 8 audit finding, Gate 7)** Drop the collection and recreate it with the corrected configuration; since this task runs before any ingest (TASK-008/009 depend on it), no chunk data exists yet to migrate or lose — rollback is a clean collection recreation, not a data migration.
@@ -225,6 +226,7 @@ Schema migrations are the DB-migration exempt type.
 #### Acceptance Criteria
 - [ ] Collection exists with dense + sparse vector configuration
 - [ ] All 5 mandatory payload indexes present
+- [ ] NFR-003: no field name or schema constraint in the `chunks` payload hardcodes an English-only assumption
 
 #### Verification Evidence
 - Qdrant collection-info API response showing vector config + payload indexes
@@ -559,25 +561,28 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 
 **Phase**: Phase 3
 **Verification Pattern**: TDD
-**Related Requirements**: REQ-004, DEC-093
+**Related Requirements**: REQ-004, NFR-028 (added post-Stage-8, DEC-129), DEC-093
 **Owner Role**: Backend
 **Dependencies**: TASK-013
 **Team-path**: ~5 days | **Solo-path**: ~9 days
 
 #### TDD Red
 - Test: `rerank/` produces `reranked_set` from `acl_trimmed_set`; `generate/` produces a draft answer with citation tokens referencing `reranked_set` chunk IDs
+- Test (added, NFR-028): `vllm.config` introspection shows `--enable-chunked-prefill` is enabled unconditionally; `--speculative-decoding` reflects the tier default (`false` on floor tier, `true` on comfort tier) unless `09-deployment-ops.md`'s validation run measured < 4 GB free VRAM at peak concurrency, in which case it is `false` regardless of tier
 
 #### TDD Green
-- Implement TEI rerank (ONNX Runtime backend, DEC-093) + vLLM generation call with structural-separator prompt construction (`24-prompt-registry.md`'s `default-v1`)
+- Implement TEI rerank (ONNX Runtime backend, DEC-093) + vLLM generation call with structural-separator prompt construction (`24-prompt-registry.md`'s `default-v1`), with vLLM serving flags per NFR-028: `--enable-chunked-prefill` mandatory; `--speculative-decoding` set from the tier default, downgraded to `false` if the measured-VRAM validation run (TASK-032) shows insufficient headroom
 
 #### TDD Refactor
 - Extract the `reranked_set` → prompt-context assembly (structural-separator formatting) as a function independent of the vLLM call itself, so `verify/`'s later citation check can reuse the identical reranked_set-to-context mapping instead of re-deriving which chunks were actually shown to the model — keeps DEC-088's "verify checks what generate saw" invariant enforceable at one source of truth
 
 #### Acceptance Criteria
 - [ ] `reranked_set` correctly derived from `acl_trimmed_set`, not `retrieval_set` (DEC-088's invariant, tested here even before `verify/` exists, since the invariant is about what `generate/` sees, not just what `verify/` checks)
+- [ ] NFR-028: `vllm.config` introspection confirms flag values match the tier/VRAM-conditional rule above
 
 #### Verification Evidence
 - Draft-answer generation test output
+- `vllm.config` introspection output confirming flag values (NFR-028, TEST-040)
 
 ### TASK-015: CDC Consumer — Webhook Transport
 
@@ -666,7 +671,7 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 
 **Phase**: Phase 4
 **Verification Pattern**: TDD
-**Related Requirements**: REQ-048, DEC-077, DEC-082
+**Related Requirements**: REQ-048, NFR-021 (added post-Stage-8, DEC-129 — near-duplicate of REQ-048, cross-cited so the NFR resolves to a task, not just the REQ), DEC-077, DEC-082
 **Owner Role**: AI
 **Dependencies**: TASK-012
 **Team-path**: ~5 days | **Solo-path**: ~9 days
@@ -716,7 +721,7 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 
 **Phase**: Phase 4
 **Verification Pattern**: TDD
-**Related Requirements**: REQ-048, DEC-077, DEC-082, DEC-092
+**Related Requirements**: REQ-048, NFR-021 (added post-Stage-8, DEC-129), DEC-077, DEC-082, DEC-092
 **Owner Role**: AI
 **Dependencies**: TASK-014
 **Team-path**: ~5 days | **Solo-path**: ~9 days
@@ -741,7 +746,7 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 
 **Phase**: Phase 4
 **Verification Pattern**: TDD
-**Related Requirements**: REQ-048, DEC-077
+**Related Requirements**: REQ-048, NFR-021 (added post-Stage-8, DEC-129), DEC-077
 **Owner Role**: AI
 **Dependencies**: TASK-018, TASK-020
 **Team-path**: ~3 days | **Solo-path**: ~5 days
@@ -899,7 +904,7 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 
 **Phase**: Phase 5
 **Verification Pattern**: TDD
-**Related Requirements**: NFR-026, NFR-033 (added post-Stage-8, DEC-128)
+**Related Requirements**: NFR-026, NFR-033 (added post-Stage-8, DEC-128), NFR-024 (added post-Stage-8, DEC-129)
 **Owner Role**: Backend
 **Dependencies**: TASK-011
 **Team-path**: ~4 days | **Solo-path**: ~7 days
@@ -907,9 +912,10 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 #### TDD Red
 - Test: a query's trace shows the full span tree from `08-observability-logs.md`'s Span Structure, with all required GenAI attributes (NFR-026) present
 - Test (added, NFR-033): the same trace's `retrieve`/`rerank`/`verify` spans carry their respective domain-specific attributes (`candidate_count`/`retrieval_top1_score`; `rerank_score_delta`/`top_k`; `mechanical_fast_path`/`nli_slow_path` verdict + per-claim NLI scores), and the root span carries the five version identifiers (`prompt_version`, `embedding_model_version`, `reranker_model_version`, `safety_input_version`, `safety_output_version`)
+- Test (added, NFR-024): `cost_per_turn` is emitted as a histogram observation per query, computed per `08-observability-logs.md`'s formula (`gpu_hourly_rate × gen_ai.request.duration / 3600`), using the configured (or default) `gpu_hourly_rate`
 
 #### TDD Green
-- Implement OTel spans per node, `otel_spans` persistence, OTLP exporter config, NFR-033's domain-specific span attributes, and the `nli_entailment_score` histogram metric
+- Implement OTel spans per node, `otel_spans` persistence, OTLP exporter config, NFR-033's domain-specific span attributes, the `nli_entailment_score` histogram metric, and `cost_per_turn` computation from `gen_ai.request.duration` × the configured GPU-hourly rate
 
 #### TDD Refactor
 - Extract per-node span lifecycle (start span, set GenAI attributes, end span, persist to `otel_spans`) into a single instrumentation wrapper applied uniformly across graph nodes, rather than each node hand-rolling its own span calls — gives TASK-018's parallel-fan-out span-structure check (NFR-029) one place to guarantee correct parent/child linkage instead of trusting every node author to wire it correctly (DEC-127)
@@ -920,10 +926,12 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 - [ ] All NFR-026 GenAI attributes present
 - [ ] All NFR-033 domain-specific and version attributes present (retrieve/rerank/verify per-span, plus root-span version identifiers)
 - [ ] `nli_entailment_score` histogram metric emitted and queryable
+- [ ] `cost_per_turn` histogram metric emitted per query, value consistent with the documented formula (NFR-024)
 - [ ] OTLP export verified against a test collector
 
 #### Verification Evidence
 - Trace export test output, including a span-attribute assertion covering both NFR-026 and NFR-033
+- `cost_per_turn` metric assertion against the documented formula (NFR-024, TEST-039)
 
 ### TASK-028: Alerts + Dashboards
 
@@ -953,16 +961,17 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 
 **Phase**: Phase 5
 **Verification Pattern**: TDD
-**Related Requirements**: REQ-013, REQ-014, REQ-049, DEC-017, DEC-078
+**Related Requirements**: REQ-013, REQ-014, REQ-049, NFR-003 (added post-Stage-8, DEC-129), NFR-024 (added post-Stage-8, DEC-129), DEC-017, DEC-078
 **Owner Role**: AI
 **Dependencies**: TASK-024
 **Team-path**: ~8 days (includes the ~15d golden-set curation from DEC-080's estimate, split between this task's harness build and the actual prompt-writing effort, which is manual curation work rather than a build task per se) | **Solo-path**: ~15 days
 
 #### TDD Red
 - Test: `cli eval run --suite golden-smoke` completes in ≤5 min and produces a structured pass/fail report against DEC-017 thresholds
+- Test (added, NFR-024): the eval run report includes a per-run cost-per-turn summary (mean, p95) aggregated from the `cost_per_turn` metric (NFR-024, `08-observability-logs.md`) emitted during the run
 
 #### TDD Green
-- Implement the RAGAS runner + smoke-ring (50 prompts) + full-ring (150-200 prompts) per `23-evals-guardrails.md` §2.2
+- Implement the RAGAS runner + smoke-ring (50 prompts) + full-ring (150-200 prompts) per `23-evals-guardrails.md` §2.2; report aggregation includes cost-per-turn mean/p95 alongside the existing metric breakdown (NFR-024's "eval harness reports cost per turn" acceptance seed)
 
 #### TDD Refactor
 - Extract the metric-computation-and-threshold-check core as a single function parameterized by prompt set, shared by the smoke and full rings — they should differ only in prompt-set size, not risk silently diverging into two independent scoring implementations if a DEC-017 threshold changes and only one ring's code path gets updated
@@ -970,9 +979,11 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 #### Acceptance Criteria
 - [ ] Smoke ring runs in ≤5 min
 - [ ] Full ring produces per-metric pass/fail against DEC-017 thresholds
+- [ ] Eval report includes cost-per-turn mean/p95 (NFR-024)
+- [ ] English-only golden set passes MVP thresholds (NFR-003 — the schema-neutrality half of NFR-003 is TASK-007's concern, not this task's)
 
 #### Verification Evidence
-- Eval run report (both rings)
+- Eval run report (both rings), including cost-per-turn summary (NFR-024, TEST-039)
 
 ## Phase 6: End-to-End Verification and Release Readiness
 
@@ -986,7 +997,7 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 
 **Phase**: Phase 6
 **Verification Pattern**: TDD-Exempt — Infrastructure-as-Code
-**Related Requirements**: REQ-012, NFR-002
+**Related Requirements**: REQ-012, NFR-002, NFR-020 (added post-Stage-8, DEC-129 — this task's zero-outbound-call verification is what NFR-020's "reviewer can trace every call to customer-controlled or explicitly disabled" acceptance criterion actually checks)
 **Owner Role**: DevOps
 **Dependencies**: TASK-029
 **Team-path**: ~3 days | **Solo-path**: ~5 days
@@ -1054,6 +1065,35 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 #### Verification Evidence
 - Validation-run results table (appended to `09-deployment-ops.md`)
 
+### TASK-039: Restart-Durability Verification (Closes NFR-007)
+
+**Phase**: Phase 6
+**Verification Pattern**: TDD-Exempt — Infrastructure-as-Code
+**Related Requirements**: NFR-007 (added post-Stage-8, DEC-129)
+**Owner Role**: DevOps
+**Dependencies**: TASK-006, TASK-007, TASK-009
+**Team-path**: ~1 day | **Solo-path**: ~2 days
+
+#### Why TDD-Exempt
+Verifying that durable state survives a container restart is a whole-system infrastructure property, not a unit-testable code path — the same class as TASK-030's air-gap check and TASK-031's install-time check, which this task's exit criterion parallels. There is no function whose red→green cycle represents "the host volume actually persisted the data."
+
+#### Verification Plan
+- Ingest a document and run at least one query to populate Postgres (`audit_events`, `documents`) and Qdrant (`chunks`) with real data
+- `docker compose down` (not just container restart — a full stop, to exercise the actual failure mode a host reboot or maintenance window represents) followed by `docker compose up`
+- Confirm the previously-ingested document is still queryable and the previously-run query's `audit_events` row still exists, with no re-ingest or data loss
+- Distinct from TASK-003 (dev-rig model-cache-only restart check) and TASK-010 (ingest-*job*-resume for a job still in flight): this task verifies already-completed, at-rest data survives, not an in-progress job or the model cache
+
+#### Rollback Plan
+N/A — this is a verification-only task with no persistent configuration change to roll back. If data is found not to survive, the defect is in the docker-compose volume-mount configuration (`09-deployment-ops.md`'s Infrastructure Components), not in this verification task itself.
+
+#### Acceptance Criteria
+- [ ] Post-restart, the previously-ingested document is queryable with an unchanged answer
+- [ ] Post-restart, the previously-written `audit_events` row is intact and unchanged (byte-for-byte, given `audit_events`'s append-only/immutable design, DEC-070)
+- [ ] No re-ingest or data-loss event logged
+
+#### Verification Evidence
+- Before/after data-integrity comparison log (`docker compose down && docker compose up`, NFR-007, VG-036)
+
 ## Definition of Done (MVP)
 
 - [ ] Every REQ-### tagged MVP in `02-requirements.md` has at least one TASK-### above tracing to it
@@ -1075,4 +1115,4 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 
 ## Decision References
 
-DEC-012, DEC-021, DEC-033, DEC-034, DEC-035, DEC-036, DEC-038, DEC-042, DEC-046, DEC-051, DEC-056, DEC-059, DEC-060, DEC-063, DEC-065, DEC-067, DEC-075, DEC-076, DEC-077, DEC-078, DEC-080, DEC-081, DEC-082, DEC-086, DEC-087, DEC-088, DEC-089, DEC-091, DEC-092, DEC-093, DEC-096, DEC-102, DEC-105, DEC-106, DEC-109, DEC-116, DEC-117
+DEC-012, DEC-021, DEC-033, DEC-034, DEC-035, DEC-036, DEC-038, DEC-042, DEC-046, DEC-051, DEC-056, DEC-059, DEC-060, DEC-063, DEC-065, DEC-067, DEC-068, DEC-075, DEC-076, DEC-077, DEC-078, DEC-080, DEC-081, DEC-082, DEC-086, DEC-087, DEC-088, DEC-089, DEC-091, DEC-092, DEC-093, DEC-096, DEC-102, DEC-105, DEC-106, DEC-109, DEC-116, DEC-117, DEC-127, DEC-128, DEC-129

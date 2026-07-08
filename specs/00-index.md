@@ -10,7 +10,7 @@ Purpose: let a reviewer (human or Claude) know *what's where* and *which DEC/REQ
 | File | Size | Covers | Key ids |
 |---|---|---|---|
 | [01-product-brief.md](01-product-brief.md) | 32K / 305 lines | Problem, personas, MVP scope, non-goals, business model, success metrics, risk register | DEC-005, DEC-010, DEC-020, DEC-024, DEC-025, DEC-072, RC-T1-12, RISK-011 |
-| [02-requirements.md](02-requirements.md) | 35K / 130 lines | Functional + non-functional requirements, traceability map | NFR-001..NFR-###, REQ-### (seed list) |
+| [02-requirements.md](02-requirements.md) | ~36K | Functional + non-functional requirements, traceability map | NFR-001..NFR-033, REQ-### (seed list) |
 | [confirmed-context.md](confirmed-context.md) | 20K / 158 lines | Stage 0 pinned scope, personas, risk-time profile, authority, stack constraints, drift log | Anchors DEC-005 scope; §Drift Log tracks changes post-pin |
 
 ### Group B — Architecture & Agent Behavior
@@ -24,7 +24,7 @@ Purpose: let a reviewer (human or Claude) know *what's where* and *which DEC/REQ
 | File | Size | Covers | Key ids |
 |---|---|---|---|
 | [23-evals-guardrails.md](23-evals-guardrails.md) | 14K / 198 lines | RAGAS metrics/thresholds, golden set, eval runner + failure routing, prompt-injection & output guardrails, context fingerprint, onboarding runbook | DEC-017, DEC-052, DEC-060, DEC-078, REQ-014, REQ-035, RC-T6-01, DEC-128 |
-| [08-observability-logs.md](08-observability-logs.md) | ~17K | Log/metric/trace/dashboard/alert schema, SLOs; domain-specific span attributes + `nli_entailment_score` histogram + trace sampling + trace-to-regression path (added post-Stage-8) | DEC-016, DEC-109, NFR-026, NFR-033, DEC-128 |
+| [08-observability-logs.md](08-observability-logs.md) | ~18K | Log/metric/trace/dashboard/alert schema, SLOs; domain-specific span attributes + `nli_entailment_score` histogram + trace sampling + trace-to-regression path (DEC-128); `cost_per_turn` formula (DEC-129) | DEC-016, DEC-068, DEC-109, NFR-024, NFR-026, NFR-033, DEC-128, DEC-129 |
 
 ### Group D — Decision Log (canonical, cross-cutting)
 | File | Size | Covers |
@@ -99,9 +99,9 @@ Slot-00 filename note: this project retains `00-index.md` as its stable slot-00 
 | 24 | `24-prompt-registry.md` | ~10 KB | None new — establishes the going-forward prompt-changelog discipline | `04-architecture.md` §5.1.1/§8.2, `23-evals-guardrails.md` §3.3 |
 | 41 | `41-integration-contracts.md` | ~17 KB | None new | `04-architecture.md` §7B (consolidated for vendor-integrator audience) |
 | 42 | `42-compliance-security.md` | ~12 KB | None new — intentionally light per `confirmed-context.md` §7 | `04-architecture.md` §12.5, `01-product-brief.md` §6 |
-| 10 | `10-build-plan.md` | ~36 KB | `TASK-001`..`TASK-032` | Every MVP REQ/NFR; applies RC-R2-X3 (team/solo annotation on every task) |
-| 11 | `11-test-plan.md` | ~18 KB | `TEST-001`..`TEST-034` | `23-evals-guardrails.md` (golden set, cross-referenced not duplicated), `06-api-contracts.md`; closes RC-T8-01's remaining half |
-| 12 | `12-verification.md` | ~12 KB | `VG-001`..`VG-030` | Every `TEST-###`/`TASK-###`; demo script per `01-product-brief.md` §9.3/`confirmed-context.md` §6 |
+| 10 | `10-build-plan.md` | ~40 KB (grew post-Stage-8) | `TASK-001`..`TASK-039` (TASK-033..038 added Stage 8 audit fix; TASK-039 added post-Stage-8, DEC-129, NFR-007 restart-durability) | Every MVP REQ/NFR; applies RC-R2-X3 (team/solo annotation on every task) |
+| 11 | `11-test-plan.md` | ~20 KB (grew post-Stage-8) | `TEST-001`..`TEST-040` (TEST-035..038 added Stage 8 fixes / DEC-128; TEST-039/040 added DEC-129) | `23-evals-guardrails.md` (golden set, cross-referenced not duplicated), `06-api-contracts.md`; closes RC-T8-01's remaining half |
+| 12 | `12-verification.md` | ~14 KB (grew post-Stage-8) | `VG-001`..`VG-036` (VG-031..033 added Stage 8 fixes / DEC-128; VG-034..036 added DEC-129) | Every `TEST-###`/`TASK-###`; demo script per `01-product-brief.md` §9.3/`confirmed-context.md` §6 |
 
 Already existed pre-Stage-7 (Groups A-C above): `00-index.md`, `01-product-brief.md`, `02-requirements.md`, `04-architecture.md`, `13-decision-log.md`, `20-agent-behavior.md`, `23-evals-guardrails.md`, `confirmed-context.md`.
 

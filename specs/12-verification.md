@@ -43,6 +43,9 @@ This is the "are we actually done" checklist. Every gate below has a testable pa
 | VG-031 | REQ-037 (retention-state capture at ingest) | TEST-035 | `retention_state` correctly captured at ingest and enforced as a Qdrant filter at retrieval | Backend |
 | VG-032 | REQ-043 (audit-pull NDJSON endpoint) | TEST-037 | NDJSON pull endpoint idempotent and correctly cursor-paginated across repeated pulls | Backend |
 | VG-033 | NFR-033 (domain-specific span attributes, DEC-128) | TEST-038 | Trace carries the full domain-specific attribute set (retrieve/rerank/verify per-span + root-span version identifiers), values consistent with the same query's `audit_events` row, no raw content present | Backend |
+| VG-034 | NFR-024 (cost-per-turn formula + eval-harness reporting, DEC-129) | TEST-039 | `cost_per_turn` metric matches the documented formula; golden-set eval report includes cost-per-turn mean/p95 | Backend/AI |
+| VG-035 | NFR-028 (vLLM optimization flags, DEC-129) | TEST-040 | `vllm.config` introspection confirms flag values match the tier/VRAM-conditional rule at both floor and comfort tier, and under a simulated low-VRAM validation result | Backend |
+| VG-036 | NFR-007 (restart-durability, DEC-129) | TASK-039 output | Previously-ingested document and previously-written `audit_events` row both intact and unchanged after `docker compose down && docker compose up` | DevOps |
 
 ## Demo Script
 
@@ -124,4 +127,4 @@ Cross-references `09-deployment-ops.md`'s Rollback Strategy section — this sec
 
 ## Decision References
 
-DEC-006, DEC-042, DEC-088, DEC-090, DEC-091, DEC-092, DEC-096, DEC-105, DEC-109, DEC-111, DEC-113, DEC-114, DEC-116, DEC-117
+DEC-006, DEC-042, DEC-088, DEC-090, DEC-091, DEC-092, DEC-096, DEC-105, DEC-109, DEC-111, DEC-113, DEC-114, DEC-116, DEC-117, DEC-128, DEC-129

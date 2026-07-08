@@ -72,9 +72,21 @@ Full schema is `05-data-model.md`'s `audit_events` entity — not duplicated her
 | `queue_depth` | Gauge | — | `api/` concurrency admission (DEC-066, NFR-030/031) |
 | `vram_headroom_gb` | Gauge | `tier` (`floor`, `comfort`) | NFR-030 admission-control metric |
 | `pdp_breaker_state` | Enum gauge: `closed`, `open`, `half_open` | — | NFR-016 ECM PDP circuit breaker |
-| `cost_per_turn` | Histogram | `model_adapter` | NFR-024 |
+| `cost_per_turn` | Histogram | `model_adapter` | NFR-024, DEC-129 — formula below |
 | `webhook_delivery_health` | Gauge: healthy/degraded | — | §7B.5, feeds NFR-016 alert |
 | `poll_cycle_success` | Counter (success/failure) | `cdc_transport_mode` | NFR-032 poll-only topology |
+
+### `cost_per_turn` formula (NFR-024, DEC-129)
+
+On-prem open-weights serving has no per-token API price to bill against — NFR-024's ¥0.10/turn ceiling existed since Stage 4 with no computation methodology behind it, which meant the ceiling was unimplementable. This is a projected compute-cost estimate, not a billed cost (the product does not meter or bill customer compute, per `09-deployment-ops.md`):
+
+```
+cost_per_turn = gpu_hourly_rate × (gen_ai.request.duration / 3600)
+```
+
+- `gen_ai.request.duration` is the root span's total wall-clock duration, already captured per NFR-026 — no new instrumentation needed, this formula only adds a multiplication step at emission time in `TASK-027`
+- `gpu_hourly_rate` is an admin-configurable value, defaulting to the reference floor-tier GPU's cloud-rental rate already cited in this spec set (`13-decision-log.md` DEC-068: RunPod 4090-spot ≈ $0.45/h) as a proxy for the amortized cost of customer-owned hardware — a customer running comfort-tier or owned (not rented) hardware should override the default with their own rate for an accurate figure, but the default gives every install a non-zero, defensible starting number rather than requiring configuration before the metric means anything
+- Sanity check against the ceiling: at the reference rate and the NFR-005 ≤8s latency budget, a turn costs ≈ ¥0.007 — comfortably under the ¥0.10 ceiling, confirming the ceiling was never intended to bind under normal operation; it exists to catch a pathological case (e.g. a runaway generation loop or a misconfigured serving tier), not to constrain routine cost
 
 ## Traces
 
@@ -183,8 +195,8 @@ This should not happen — treat as Critical per the alert table above, not as "
 - `07-database.md` (physical retention mechanics for `otel_spans` vs `audit_events`; `otel_spans.attributes` is JSONB, so the new domain-specific attributes require no schema migration)
 - `09-deployment-ops.md` (this phase — concrete runbooks this file's alerts point to)
 - `23-evals-guardrails.md` §2.2 (sampling reconciliation), §6 (Trace-to-Regression Promotion), §7 (`nli_entailment_score` histogram feeding the threshold-tuning runbook)
-- `13-decision-log.md` DEC-016, DEC-042, DEC-060, DEC-063, DEC-066, DEC-070, DEC-076, DEC-082, DEC-096, DEC-097, DEC-102, DEC-106, DEC-109, DEC-116, DEC-128
+- `13-decision-log.md` DEC-016, DEC-042, DEC-060, DEC-063, DEC-066, DEC-068 (`cost_per_turn` GPU-rate reference), DEC-070, DEC-076, DEC-082, DEC-096, DEC-097, DEC-102, DEC-106, DEC-109, DEC-116, DEC-128, DEC-129
 
 ## Decision References
 
-DEC-016, DEC-042, DEC-060, DEC-063, DEC-066, DEC-070, DEC-076, DEC-082, DEC-096, DEC-097, DEC-102, DEC-106, DEC-109, DEC-116, DEC-128
+DEC-016, DEC-042, DEC-060, DEC-063, DEC-066, DEC-068, DEC-070, DEC-076, DEC-082, DEC-096, DEC-097, DEC-102, DEC-106, DEC-109, DEC-116, DEC-128, DEC-129
