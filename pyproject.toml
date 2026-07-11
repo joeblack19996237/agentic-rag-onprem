@@ -1,0 +1,6 @@
+[tool.pytest.ini_options]
+# Repo root on sys.path regardless of invocation style (`pytest` vs
+# `python -m pytest`) — needed for top-level-package imports like
+# `from api.main import app` to resolve the same way everywhere,
+# including CI (which invokes bare `pytest`).
+pythonpath = ["."]
