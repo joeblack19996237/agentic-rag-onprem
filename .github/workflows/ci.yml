@@ -27,3 +27,6 @@ jobs:
 
       - name: Architecture import-graph check
         run: pytest tests/architecture/test_import_graph.py -q
+
+      - name: Smoke test (GET /ready) — expected red at this phase
+        run: pytest tests/api/test_ready.py -v

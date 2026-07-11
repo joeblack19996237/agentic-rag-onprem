@@ -27,8 +27,8 @@ Last probed: 2026-07-11
 
 | Capability | How confirmed | Result | Notes |
 |---|---|---|---|
-| CI provider connected to this repo | `.github/workflows/` presence + `git remote -v` | not connected | No `.github/` directory exists yet; `git remote -v` returns nothing — repo has no remote configured at all. Standing up CI is `.scratch/phase-1-bootstrap/issues/02-dev-rig-ci-baseline.md`'s job, not yet done |
-| Agent can query live run status | `gh run list` | not applicable | `gh` CLI (v2.88.1) is installed and authenticated (`gh auth status` succeeds, account `joeblack19996237`), but there's no remote/workflow to query yet — this becomes usable once issue 02 stands up CI and a remote exists |
+| CI provider connected to this repo | `git remote -v` + `gh run list --branch master --limit 3` | **connected** (updated 2026-07-11, was "not connected" earlier the same day) | `origin` is `https://github.com/joeblack19996237/agentic-rag-onprem` (public). User connected it and pushed after Issue 02 landed. `.github/workflows/ci.yml` exists and Actions is enabled. |
+| Agent can query live run status | `gh run list --branch master --limit 3` | **yes** | `gh` CLI (v2.88.1), authenticated as `joeblack19996237`. Confirmed run `29143498710` (Issue 02's commit): `completed` / `success`. Pushing itself still needs per-instance user confirmation (this session's operating convention, not a tool/credential limit) — but once pushed, querying the result is fully agent-drivable, e.g. `gh run list --branch master --limit 1` / `gh run view <id> --log`. |
 
 ## Reference docs (fast-moving / version-sensitive libraries)
 
