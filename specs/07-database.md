@@ -56,7 +56,7 @@ No pgvector, no Weaviate, no Celery/Kafka — see DEC-034 for the full rejected-
 
 ### Migrations
 
-- **Framework**: Alembic (standard for Python/SQLAlchemy-adjacent stacks; matches DEC-033's Python 3.12 pin)
+- **Framework**: Alembic (standard for Python/SQLAlchemy-adjacent stacks; matches the project's Python pin — originally DEC-033's 3.12, re-pinned to 3.14 by DEC-134)
 - **`audit_events` schema changes are additive-only** — new nullable columns with a stated default for historical rows; no migration may `ALTER ... DROP COLUMN` or reinterpret an existing column's semantics on this table, per `05-data-model.md`'s migration-implications section
 - **Embedding-model-version migrations do not touch this schema** — they are a Qdrant-side collection migration (see below), with only a `model_versions` row insert + active-flip on the Postgres side
 

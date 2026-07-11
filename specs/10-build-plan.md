@@ -78,7 +78,7 @@ Project scaffolding (directory structure, `pyproject.toml`, docker-compose skele
 Dependency pinning is a vendor-SDK-class task per `spec-templates.md`'s exempt-type table.
 
 #### Verification Plan
-- Pin exact versions: Python 3.12, FastAPI, LangGraph 1.2.x, vLLM, TEI client, Qdrant client, Postgres driver, Redis client, **`llama-cpp-python`** (DEC-033, DEC-075, DEC-012, DEC-035, DEC-034, DEC-076; LangGraph version corrected DEC-131; `llama-cpp-python` added DEC-133 — DEC-130's RAGAS judge model runs on `llama.cpp`, and this was the missing link between that decision and the dependency-pinning task)
+- Pin exact versions: Python 3.14, FastAPI, LangGraph 1.2.x, vLLM, TEI client, Qdrant client, Postgres driver, Redis client, **`llama-cpp-python`** (DEC-033, DEC-075, DEC-012, DEC-035, DEC-034, DEC-076; LangGraph version corrected DEC-131; `llama-cpp-python` added DEC-133; Python version re-pinned 3.12→3.14 DEC-134 — DEC-033's 3.12 was not stale, this matches the actual Phase 1 execution environment instead — DEC-130's RAGAS judge model runs on `llama.cpp`, and this was the missing link between that decision and the dependency-pinning task)
 - Smoke-import every pinned dependency in a throwaway script
 
 #### Rollback Plan
@@ -1120,4 +1120,4 @@ N/A — this is a verification-only task with no persistent configuration change
 
 ## Decision References
 
-DEC-012, DEC-021, DEC-033, DEC-034, DEC-035, DEC-036, DEC-038, DEC-042, DEC-046, DEC-051, DEC-056, DEC-059, DEC-060, DEC-063, DEC-065, DEC-067, DEC-068, DEC-075, DEC-076, DEC-077, DEC-078, DEC-080, DEC-081, DEC-082, DEC-086, DEC-087, DEC-088, DEC-089, DEC-091, DEC-092, DEC-093, DEC-096, DEC-102, DEC-105, DEC-106, DEC-109, DEC-116, DEC-117, DEC-127, DEC-128, DEC-129
+DEC-012, DEC-021, DEC-033, DEC-034, DEC-035, DEC-036, DEC-038, DEC-042, DEC-046, DEC-051, DEC-056, DEC-059, DEC-060, DEC-063, DEC-065, DEC-067, DEC-068, DEC-075, DEC-076, DEC-077, DEC-078, DEC-080, DEC-081, DEC-082, DEC-086, DEC-087, DEC-088, DEC-089, DEC-091, DEC-092, DEC-093, DEC-096, DEC-102, DEC-105, DEC-106, DEC-109, DEC-116, DEC-117, DEC-127, DEC-128, DEC-129, DEC-131, DEC-133, DEC-134

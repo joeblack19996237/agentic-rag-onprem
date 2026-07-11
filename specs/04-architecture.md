@@ -12,7 +12,7 @@ Reference stack at the customer-hardware floor (DEC-041 + DEC-079, supersedes DE
 
 ## 2. Architecture summary (the 5-line elevator) — revised Round 2 (2026-06-29)
 
-1. **Stack**: Python 3.12 + FastAPI + **LangGraph 1.2.x** (version corrected 2026-07-08, DEC-131 — was "0.2.x", already stale when DEC-075 pinned it) + vLLM + TEI + Qdrant + Postgres 16 + **Redis / Valkey** + docker-compose.
+1. **Stack**: Python 3.14 (re-pinned 2026-07-11, DEC-134 — was 3.12; DEC-033's 3.12 choice was not stale, this is a deliberate re-decision matching the actual Phase 1 execution environment) + FastAPI + **LangGraph 1.2.x** (version corrected 2026-07-08, DEC-131 — was "0.2.x", already stale when DEC-075 pinned it) + vLLM + TEI + Qdrant + Postgres 16 + **Redis / Valkey** + docker-compose.
 2. **Hybrid storage** (DEC-034 + DEC-076): Postgres carries relational + audit + persistent queue; Redis carries hot-path cache (prompt / answer / ACL / embedding) + optional in-request queue.
 3. **`verify/` is the hot path** (DEC-005, DEC-037, DEC-075): citation check + NLI + refusal **inside a LangGraph node** with a feedback edge back to `generate/` reserved for V2 REQ-020.
 4. **Layered safety rails in MVP** (DEC-077): `Llama Prompt Guard 2` input rail + `Llama Guard 3 8B` output rail + `NeMo Guardrails` orchestration rail + structural separators + server-reconstructed history.
@@ -75,7 +75,7 @@ Rejected.
 
 | Layer | Choice | Why | Notes |
 |---|---|---|---|
-| Language | Python 3.12 | OSS LLM ecosystem is Python-native; DEC-033 | Type hints + Pydantic everywhere |
+| Language | Python 3.14 (re-pinned DEC-134, was 3.12) | OSS LLM ecosystem is Python-native; DEC-033, version re-pinned DEC-134 | Type hints + Pydantic everywhere |
 | API | FastAPI | Async, OpenAPI auto-gen, fits REQ-008; DEC-033 | One process; uvicorn |
 | **Pipeline orchestration** | **LangGraph 1.2.x (typed-state DAG with feedback edges)** | **DEC-075; 2026 production default for per-claim verification loops per `92a-stage5r2-benchmark.md` §Topic 1** | **State envelope carries query, retrieval set, draft answer, citations, verify result, audit fingerprint; feedback edge from `verify/` → `generate/` realises REQ-020** |
 | LLM serving | vLLM HTTP mode | DEC-012; production default per trend research §4 | Single GPU; PagedAttention; prompt-cache + KV-cache reuse mandatory (DEC-054) |
@@ -1199,7 +1199,7 @@ Secret management, indirect prompt injection deep defense, and SRI rotation runb
 | ID | Decision |
 |---|---|
 | DEC-032 | Build from scratch with primitives (not LlamaIndex / Haystack / RAGFlow-fork) |
-| DEC-033 | Python 3.12 + FastAPI |
+| DEC-033 | Python 3.12 + FastAPI (Python version re-pinned to 3.14 by DEC-134, 2026-07-11) |
 | DEC-034 | Qdrant + Postgres 16; no Redis / Celery / Kafka in MVP |
 | DEC-035 | TEI separate processes for embedding + rerank |
 | DEC-036 | Unstructured + PyMuPDF + python-docx for parsing |

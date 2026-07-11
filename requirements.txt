@@ -1,0 +1,33 @@
+# Core pinned dependencies for GroundedDocs (Phase 1 scaffold, TASK-002).
+# Runtime target: Python 3.14 (DEC-134, supersedes DEC-033's original 3.12 —
+# not a stale-claim fix, a deliberate re-pin matching this environment's actual
+# interpreter; see specs/13-decision-log.md DEC-134). Versions verified against
+# live PyPI metadata on 2026-07-11, not training-data recall, per this repo's
+# dependency-version discipline (specs/13-decision-log.md DEC-131/132/133).
+# fastapi/uvicorn/PyYAML are pinned to the versions already installed and
+# working in the local dev environment, rather than PyPI's latest, to avoid
+# an unnecessary upgrade of a known-good install.
+#
+# llama-cpp-python is intentionally NOT in this file — see requirements-llama-cpp.txt
+# and .scratch/phase-1-bootstrap/issues/01-project-scaffold-dependencies.md's
+# 2026-07-11 correction (no prebuilt PyPI wheel; needs a C/C++ build toolchain
+# this environment doesn't have; moved to [manual-verify]).
+#
+# vLLM is not in this file either: GPU-only, DEC-012, [manual-verify] in the same issue.
+#
+# TEI (text-embeddings-inference) has no dedicated Python client package on PyPI —
+# it's called over its REST API. httpx is pinned explicitly below to serve that
+# role (it would also arrive transitively via qdrant-client's httpx[http2] extra,
+# but pinning it directly makes the TEI-client dependency verifiable on its own
+# rather than riding along unpinned on someone else's requirement); flag if a
+# different TEI SDK is intended.
+
+fastapi==0.135.2          # DEC-033 — API framework (pinned to locally-installed version)
+uvicorn==0.42.0           # DEC-033 — ASGI server for FastAPI (pinned to locally-installed version)
+langgraph==1.2.9          # DEC-075, version corrected DEC-131 — pipeline orchestration
+httpx==0.28.1             # DEC-035 — TEI client (REST calls to the embedding/rerank services)
+qdrant-client==1.18.0     # DEC-034 — vector store client
+psycopg[binary]==3.3.4    # DEC-034 — Postgres driver; binary extra avoids libpq build-from-source
+redis==8.0.1              # DEC-076 — Redis/Valkey hot-path cache client
+PyYAML==6.0.3             # config loading (config/ module) + compose-file verification
+

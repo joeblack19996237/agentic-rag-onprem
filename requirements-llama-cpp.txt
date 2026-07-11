@@ -1,0 +1,12 @@
+# Isolated from requirements.txt on purpose — see
+# .scratch/phase-1-bootstrap/issues/01-project-scaffold-dependencies.md's
+# 2026-07-11 correction. DEC-133 pins this for the Phase 5 RAGAS judge model
+# (Qwen2.5-14B-Instruct via llama.cpp, DEC-130); project Python target is 3.14
+# (DEC-134, supersedes DEC-033's original 3.12 — see requirements.txt).
+#
+# PyPI ships only a 67 MB sdist for this package (no prebuilt wheel for any
+# platform as of 0.3.33) — installing it requires a C/C++ build toolchain
+# (cmake + MSVC on Windows, or gcc/clang elsewhere). Status: [manual-verify],
+# owner DevOps/Backend, on a host that has that toolchain.
+
+llama-cpp-python==0.3.33

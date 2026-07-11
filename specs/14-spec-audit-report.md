@@ -3,6 +3,24 @@
 ## Verdict
 READY
 
+## Re-audit Note (2026-07-11, Python version re-pin, DEC-134)
+
+**Scope**: `update-specs` run to propagate DEC-134 (Python 3.12 → 3.14, superseding DEC-033's version literal only — not its FastAPI/language-family choice). Re-checks Gate 4 (testable acceptance criteria — `TASK-002`'s pin list changed), Gate 7 (Build Plan Verification Compliance, scoped to `TASK-002`), and Gate 8 (Cross-Spec Consistency, scoped to every file citing DEC-033's Python version). Gates 1-3, 5-6, 9 are **not** re-checked — no product/scope/UX/AI-agent-behavior/SaaS content was touched — and carry forward as PASS/N/A from the prior audit.
+
+**Context**: this is not a bug fix. DEC-133's re-audit (2026-07-08, immediately above) explicitly checked the Python 3.12 pin against the "false current-version claim" bug shape that hit LangGraph (DEC-075/131) and found no such defect — DEC-033 was, and remains, a deliberate, correct-at-the-time choice. DEC-134 supersedes it for an unrelated reason: the actual Phase 1 execution environment (this maintenance session's agent sandbox) has only Python 3.14.3 installed, with no 3.12 runtime available, and the user chose to re-pin rather than install a second runtime purely to match the spec.
+
+**Verification performed before the decision was made** (not assumed): all 7 CPU-installable dependencies `TASK-002` pins (fastapi, uvicorn, langgraph, qdrant-client, psycopg[binary], redis, PyYAML) were confirmed via a live `pip install --dry-run` to resolve with zero conflicts under Python 3.14.3, cross-checked against live PyPI JSON metadata (each ships a `cp314` or `py3-none-any` wheel). vLLM and llama-cpp-python — the two pinned dependencies not verifiable in this environment — were confirmed to be blocked by reasons unrelated to the Python version (vLLM: `manylinux`-only wheels, GPU/Linux-only regardless of interpreter version; llama-cpp-python: missing local C/C++ build toolchain, already recorded as `[manual-verify]` before this DEC), so the re-pin does not newly break either.
+
+**Fix applied (DEC-134)**: Python version updated from 3.12 to 3.14 in `04-architecture.md` (stack summary line, tech-stack table, §14 decision summary — DEC-033's own row left unedited, annotated instead), `07-database.md` (Alembic framework note), `10-build-plan.md` (`TASK-002`'s Verification Plan bullet + Decision References footer, which also picked up two pre-existing missing citations — DEC-131, DEC-133 — found while confirming the footer's list was exhaustive per this skill's Step 1), `00-index.md` (Key ids row for `04-architecture.md`, Stage-7-files row for `10-build-plan.md`), and the one affected, not-yet-implemented `.scratch/` issue (`01-project-scaffold-dependencies.md`).
+
+**Gate 4 — PASS.** `TASK-002`'s acceptance criteria ("`pip install` succeeds with zero conflicts," "every pinned dependency importable") remain testable as written; only the target interpreter version named in the Verification Plan changed, not the criteria's shape or its command/expected-output pairing.
+
+**Gate 7 — PASS for TASK-002 (the only task this round touched).** TASK-002 remains TDD-Exempt with complete Why/Verification Plan/Rollback Plan/Acceptance Criteria/Verification Evidence; the version change is a substitution within the existing Verification Plan bullet, not a structural change.
+
+**Gate 8 — PASS.** No new `REQ`/`NFR`/`TEST`/`VG` id was needed or minted — this is a `DEC`-only change. Checked `.scratch/` for other affected in-flight issues — grepped both "Python 3.12" and "DEC-033" across `.scratch/`; only Issue 01 (`01-project-scaffold-dependencies.md`) matched, and it's updated. Checked `docs/adr/` — still does not exist, nothing to supersede there. Checked for any other spec file asserting "Python 3.12" that this round might have missed — `02-requirements.md`, `01-product-brief.md`, `06-api-contracts.md`, `20-agent-behavior.md` were grepped and do not cite the version number directly (only `04-architecture.md`, `07-database.md`, `10-build-plan.md` did, all three now updated).
+
+**Final verdict: READY, unchanged.** A deliberate, verified re-pin — not a defect fix — fully propagated across every file that asserted the old version number.
+
 ## Re-audit Note (2026-07-08, general re-audit — llama-cpp-python coverage gap, DEC-133)
 
 **Scope**: User requested a general re-audit independent of any specific known change, modeled on DEC-129's NFR→TASK sweep — specifically checking whether any other recently-added DEC (127-132) had the same failure shape as the LangGraph version gap: a decision introducing a capability without full build-plan coverage. This re-checks Gate 7 (Build Plan Verification Compliance, scoped to TASK-002/TASK-029) and Gate 8 (Cross-Spec Consistency). Gates 1-6, 9 are **not** re-checked — no product/scope/UX/architecture-alternative/AI-agent-behavior/SaaS content was touched — and carry forward as PASS/N/A from the prior audit.

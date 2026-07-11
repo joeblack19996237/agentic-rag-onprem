@@ -1,0 +1,85 @@
+# GroundedDocs — MVP single-host skeleton (Phase 1 scaffold, TASK-001).
+# Service list and shape per specs/04-architecture.md §9.1 and §9.4;
+# no HA/blue-green (DEC-101, Kubernetes explicitly not adopted at MVP).
+# Placeholder images only — real image builds land in later phases.
+
+services:
+  api:
+    image: groundeddocs/api:dev
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      - vllm
+      - tei-embed
+      - tei-rerank
+      - nli
+      - safety-input
+      - safety-output
+      - policy
+      - qdrant
+      - postgres
+      - redis
+
+  vllm:
+    # Llama-3.1-8B-Instruct int4 (floor tier) or Mistral-Small-24B int4 (comfort tier), DEC-052
+    image: groundeddocs/vllm:dev
+    volumes:
+      - ./models:/models
+
+  tei-embed:
+    # bge-m3, DEC-086
+    image: groundeddocs/tei-embed:dev
+    volumes:
+      - ./models:/models
+
+  tei-rerank:
+    # bge-reranker-v2-m3, ONNX Runtime backend, DEC-093 MVP default
+    image: groundeddocs/tei-rerank:dev
+    volumes:
+      - ./models:/models
+
+  nli:
+    # deberta-v3-base-mnli, CPU-runnable
+    image: groundeddocs/nli:dev
+    volumes:
+      - ./models:/models
+
+  safety-input:
+    # Llama Prompt Guard 2 int4, DEC-077
+    image: groundeddocs/safety-input:dev
+    volumes:
+      - ./models:/models
+
+  safety-output:
+    # Llama Guard 3 8B int4 AWQ, DEC-077 + DEC-082
+    image: groundeddocs/safety-output:dev
+    volumes:
+      - ./models:/models
+
+  policy:
+    # NeMo Guardrails declarative ruleset, DEC-077
+    image: groundeddocs/policy:dev
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    volumes:
+      - ./qdrant:/qdrant/storage
+
+  postgres:
+    image: postgres:16-alpine
+    env_file:
+      - .env
+    volumes:
+      - ./pg:/var/lib/postgresql/data
+
+  redis:
+    # Redis 7.x or Valkey 8.x, DEC-076
+    image: redis:7-alpine
+
+  widget:
+    # static iframe assets + Web Component build, DEC-040
+    image: nginx:alpine
+    ports:
+      - "8080:80"
