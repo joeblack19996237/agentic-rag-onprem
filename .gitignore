@@ -3,3 +3,24 @@ skills-lock.json
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# Runtime secrets — never committed (specs/09-deployment-ops.md: ECM adapter
+# credentials live in a host-mounted .env, referenced via docker-compose env_file)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# docker-compose volume mounts (specs/04-architecture.md §9.1) — model weights
+# (GBs, license-restricted redistribution) and live Qdrant/Postgres data
+# (real customer document content once ingest runs)
+models/
+qdrant/
+pg/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
