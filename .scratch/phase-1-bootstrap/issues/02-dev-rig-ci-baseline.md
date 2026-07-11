@@ -1,6 +1,6 @@
 Status: ready-for-human
 
-<!-- 2026-07-11: both agent-checkable acceptance criteria are done and verified (see checkmarks below). Only the 3 [manual-verify] items remain (RunPod boot/restart, live CI-green, import-graph-in-CI) plus the NFR-011 Success metric — none agent-closeable in this environment. -->
+<!-- 2026-07-11: both agent-checkable acceptance criteria are done and verified. CI-green and import-graph-in-CI [manual-verify] items closed same day once the user connected the repo to a GitHub remote (run 29143498710). Only the RunPod boot/restart [manual-verify] item and the NFR-011 Success metric remain — neither closeable without a live RunPod account / a timed human trial. -->
 
 # Issue 02: Dev Rig Verification + CI Baseline
 
@@ -31,10 +31,12 @@ Both halves are TDD-Exempt (Infrastructure-as-Code) — correctness is verified 
 
 - [ ] [manual-verify] RunPod template + Network Volume boots; model cache survives pod restart
       Owner: DevOps. Evidence to capture: pod boot log, plus a before/after cache-content check (file listing or checksum) across a restart. Requires a live RunPod account and credentials the current agent execution environment does not have.
-- [ ] [manual-verify] CI pipeline is green on the scaffold commit
+- [x] [manual-verify] CI pipeline is green on the scaffold commit
       Owner: whoever connects this repo to a GitHub remote with Actions enabled. Evidence to capture: `gh run list` output or the Actions tab. This repo currently has no git remote configured (`git remote -v` returns empty) and no `.github/workflows` directory — CI can't be observed as green by the agent until both exist.
-- [ ] [manual-verify] Import-graph check step runs in CI (not just locally)
+      **Closed (2026-07-11, by user)**: repo connected to a GitHub remote (`origin`), pushed, Actions triggered automatically. `gh run list --branch master --limit 1` → `✓` (conclusion: success), run ID `29143498710`.
+- [x] [manual-verify] Import-graph check step runs in CI (not just locally)
       Owner: same as above. Evidence to capture: the CI run log showing the step executed. Same blocker as above.
+      **Closed (2026-07-11, by user)**: `gh run view 29143498710 --log` shows the "Architecture import-graph check" step executing `pytest tests/architecture/test_import_graph.py -q` on the Actions runner (Python 3.14.6) with output `3 passed in 0.02s` — confirms the check actually ran in CI, not just locally.
 
 ## Success metrics (not agent-verifiable; requires a live human trial)
 
