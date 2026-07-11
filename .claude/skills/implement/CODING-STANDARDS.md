@@ -2,7 +2,7 @@
 
 Split from a general-purpose `coding-standards.md` brought over from another project. That file mixed two different kinds of rule; only one kind belongs here.
 
-Every mechanically-checkable rule — function length, nesting depth, magic numbers, dead code, `print()` left in, bare `except:`, hardcoded secrets, SQL string concatenation, naming-case conventions, a skipped test with no reason — is **not** in this file. Those belong in a linter/pre-commit config (ruff, bandit, a secret scanner), not in a document an agent has to remember on every pass. This repo's own `/review` skill already states the principle: "Skip anything tooling enforces." A deterministic check that runs on every commit is strictly more reliable than a stochastic read of a rules file, so restating what a tool already enforces here would just add context load for nothing a careful read adds on top.
+Every mechanically-checkable rule — function length, nesting depth, magic numbers, dead code, `print()` left in, bare `except:`, hardcoded secrets, SQL string concatenation, naming-case conventions, a skipped test with no reason — is **not** in this file. Those belong in a linter/pre-commit config (ruff, bandit, a secret scanner), not in a document an agent has to remember on every pass. This repo's own `/code-review` skill already states the principle: "Skip anything tooling enforces." A deterministic check that runs on every commit is strictly more reliable than a stochastic read of a rules file, so restating what a tool already enforces here would just add context load for nothing a careful read adds on top.
 
 What's left is the part a linter genuinely can't do: judgment calls, where the right answer depends on knowing intent, not on matching a pattern.
 

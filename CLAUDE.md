@@ -1,5 +1,20 @@
 # agentic-rag-onprem
 
+## Project
+
+**GroundedDocs** — an on-prem, vendor-embeddable document Q&A agent for CCM/ECM vendors (Quadient, Smart Communications, M-Files, Hyland, etc.) whose enterprise customers need answers grounded in verified citations, with honest refusal when grounding is weak. Open-weight, fully local LLM inference, model-swappable; no cloud egress. See `specs/01-product-brief.md` for the full problem statement and positioning.
+
+Currently in the spec-authoring stage: there is no application source tree yet. The canonical source of truth is `specs/` (see below); everything else in the repo supports producing and maintaining that spec set.
+
+## Repo structure
+
+- `specs/` — canonical product-level spec set (`00-index.md` is the entry point). See "Product specs" below.
+- `docs/agents/` — per-repo config consumed by the engineering skills (issue tracker, triage labels, domain-doc layout).
+- `docs/adr/` — repo-level architectural decisions (created lazily by `domain-modeling`/`improve-codebase-architecture`; may not exist yet).
+- `.scratch/<feature>/` — local issue tracker (markdown-based; see "Issue tracker" below).
+- `.claude/skills/` — **canonical** skill definitions for this repo. Any skill reference (in this file, in other skills, or in ad-hoc instructions) must point here.
+- `.agents/skills/` — a stale local mirror from an earlier skill-installer layout. It is gitignored and no longer maintained — **do not read from or cite skills in this directory**; the current version of every skill listed there now lives under `.claude/skills/`.
+
 ## Agent skills
 
 ### Issue tracker

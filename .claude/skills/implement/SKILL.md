@@ -14,6 +14,6 @@ Before writing code against a fast-moving or pre-1.0 dependency — this project
 
 Run typechecking regularly, single test files regularly, and the full test suite once at the end.
 
-Once done, use /review to review the work.
+Once done, use /code-review to review the work.
 
 Commit your work to the current branch.

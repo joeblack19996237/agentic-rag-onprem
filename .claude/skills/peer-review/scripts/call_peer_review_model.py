@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Call DeepSeek's OpenAI-compatible chat completions endpoint to get a
-structured, independent code review of a diff.
+"""Call an OpenAI-compatible chat completions endpoint to get a structured,
+independent code review of a diff from a model outside the Claude family.
 
 Exit codes are the contract this skill relies on:
   0 - success, --out contains {"issues": [...], "summary": "..."}
@@ -8,10 +8,15 @@ Exit codes are the contract this skill relies on:
       or a response that wasn't valid JSON despite requesting JSON mode).
       The skill treats this as "peer review unavailable" - a hard BLOCK,
       not a soft warning, and never falls back to guessing at partial output.
-  2 - DEEPSEEK_API_KEY is not set. Not attempted at all.
+  2 - PEER_REVIEW_API_KEY is not set. Not attempted at all.
 
 Uses only the standard library so it runs anywhere Python 3 does, with no
 extra dependency to install first.
+
+Backend defaults to DeepSeek's public API, but every part of it is
+configurable via --model/--endpoint or the PEER_REVIEW_MODEL /
+PEER_REVIEW_API_BASE env vars, so a different non-Claude vendor can be
+swapped in without touching this file.
 """
 import argparse
 import json
@@ -52,8 +57,8 @@ def main():
     parser.add_argument("--rubric-file", required=True)
     parser.add_argument("--context-file", default=None)
     parser.add_argument("--out", required=True)
-    parser.add_argument("--model", default=os.environ.get("DEEPSEEK_MODEL", DEFAULT_MODEL))
-    parser.add_argument("--endpoint", default=os.environ.get("DEEPSEEK_API_BASE", DEFAULT_ENDPOINT))
+    parser.add_argument("--model", default=os.environ.get("PEER_REVIEW_MODEL", DEFAULT_MODEL))
+    parser.add_argument("--endpoint", default=os.environ.get("PEER_REVIEW_API_BASE", DEFAULT_ENDPOINT))
     parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT)
     parser.add_argument(
         "--dry-run",
@@ -75,10 +80,10 @@ def main():
         print(f"DRY RUN: wrote request payload to {args.out} (no network call made)")
         return 0
 
-    api_key = os.environ.get("DEEPSEEK_API_KEY")
+    api_key = os.environ.get("PEER_REVIEW_API_KEY")
     if not api_key:
         print(
-            "DEEPSEEK_API_KEY is not set - peer review cannot call DeepSeek. "
+            "PEER_REVIEW_API_KEY is not set - peer review cannot call the configured model. "
             "This is not attempted as a partial/best-effort call.",
             file=sys.stderr,
         )
@@ -99,24 +104,24 @@ def main():
             raw_body = response.read().decode("utf-8")
     except urllib.error.HTTPError as e:
         body = e.read().decode("utf-8", errors="replace")
-        print(f"DeepSeek API returned HTTP {e.code}: {body}", file=sys.stderr)
+        print(f"Peer-review API returned HTTP {e.code}: {body}", file=sys.stderr)
         return 1
     except (urllib.error.URLError, TimeoutError, OSError) as e:
-        print(f"DeepSeek API call failed: {e}", file=sys.stderr)
+        print(f"Peer-review API call failed: {e}", file=sys.stderr)
         return 1
 
     try:
         transport = json.loads(raw_body)
         content = transport["choices"][0]["message"]["content"]
     except (json.JSONDecodeError, KeyError, IndexError, TypeError) as e:
-        print(f"DeepSeek API response had an unexpected shape: {e}\nRaw body: {raw_body}", file=sys.stderr)
+        print(f"Peer-review API response had an unexpected shape: {e}\nRaw body: {raw_body}", file=sys.stderr)
         return 1
 
     try:
         review = json.loads(content)
     except json.JSONDecodeError as e:
         print(
-            f"DeepSeek did not return valid JSON content despite json_object mode "
+            f"Peer-review model did not return valid JSON content despite json_object mode "
             f"({e}) - treating as a failed call rather than guessing at a parse.\n"
             f"Raw content: {content}",
             file=sys.stderr,
@@ -124,7 +129,7 @@ def main():
         return 1
 
     if "issues" not in review or "summary" not in review or not isinstance(review["issues"], list):
-        print(f"DeepSeek's JSON is missing required keys (issues/summary): {review}", file=sys.stderr)
+        print(f"Peer-review model's JSON is missing required keys (issues/summary): {review}", file=sys.stderr)
         return 1
 
     with open(args.out, "w", encoding="utf-8") as f:
