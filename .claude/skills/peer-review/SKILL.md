@@ -1,6 +1,6 @@
 ---
 name: peer-review
-description: Get an independent second-opinion code review from a model outside the Claude family, to catch same-model self-evaluation bias that Claude's own /code-review can't see. Use after /code-review, at the end of /implement, or whenever the user asks for "another model's opinion", "cross-model review", "a second opinion from a different LLM", "peer review", or wants to sanity-check a diff before merging. Requires an API key for the configured peer-review model (PEER_REVIEW_API_KEY).
+description: Get an independent second-opinion code review from a model outside the Claude family, to catch same-model self-evaluation bias that Claude's own /code-review can't see. Use after /code-review, at the end of /implement, or whenever the user asks for "another model's opinion", "cross-model review", "a second opinion from a different LLM", "peer review", or wants to sanity-check a diff before merging.
 ---
 
 # Peer Review
@@ -15,28 +15,33 @@ This skill triggers the same way every other skill here does: the `/peer-review`
 
 ## Step 1 — Pin the fixed point and scope the diff
 
-Same as `/code-review`: whatever the user names (commit SHA, branch, tag, `main`, `HEAD~5`) is the fixed point — ask if they didn't specify one. Confirm it resolves (`git rev-parse <fixed-point>`) and capture the diff: `git diff <fixed-point>...HEAD`. A bad ref or an empty diff should fail here, before any API call gets spent on it.
+**If the user explicitly names a fixed point** (commit SHA, branch, tag, `main`, `HEAD~5`): use it. Confirm it resolves (`git rev-parse <fixed-point>`) and capture the diff: `git diff <fixed-point>...HEAD`. A bad ref or an empty diff should fail here, before any API call gets spent on it.
+
+**If the user does NOT specify a fixed point**, determine it from the last peer-review report:
+
+1. List `.scratch/review-reports/` — if it's empty or doesn't exist, ask the user for a fixed point.
+2. Read the most recent report (sorted by filename or modification time) and extract the **Scope** line (e.g. `HEAD~5..HEAD (397bc54 → 076ce77)`).
+3. Parse the second commit SHA from that line — that was the `HEAD` of the last review. Use it as this review's fixed point: `git diff <last-reviewed-HEAD>...HEAD`.
+4. If the diff is empty (`git diff` produces no output), report *"No changes since the last peer review (<link to last report>). Nothing to review."* and stop — this is a clean pass, not a failure.
+
+This ensures each peer review covers only new code since the last review, with no gap or overlap.
 
 ## Step 2 — Gather spec context (optional but preferred)
 
 The peer model can't judge "does this implement what was asked" without knowing what was asked. Use the same search `/code-review` step 2 uses: issue references in commit messages, a path the user passed, or a PRD/spec file under `docs/`, `specs/`, or `.scratch/` matching the branch or feature. If nothing is found, proceed without it — the Functionality dimension below explicitly skips itself when there's no context to check against; Security/Performance/Design checks don't need one.
 
-## Step 3 — Confirm the peer-review model is reachable, then call it
+## Step 3 — Send the diff to the peer model for review
 
-Check that `PEER_REVIEW_API_KEY` is set. If it isn't, **stop here** — do not attempt the call, and do not fall back to reviewing the diff yourself and calling that "peer review." Report: *"`PEER_REVIEW_API_KEY` is not set — peer review cannot run. Verdict: BLOCK (peer review unavailable, not a code-quality finding)."*
+The review rubric lives in this file — see **Review dimensions** below — so there is exactly one place it can drift from what actually gets sent.
 
-This is a hard gate, not a soft warning, by explicit project decision: a peer review that couldn't run blocks exactly like one that found real problems, because "we didn't check" and "we checked and it's fine" must never look the same in a report someone might act on.
+Construct a prompt that includes:
+1. The full diff (no redaction, no file exclusion — the diff is treated the same way it will be treated in version control)
+2. Any spec context gathered in Step 2
+3. The **Review dimensions** rubric and the JSON output schema from this file
 
-The review rubric lives in this file — see **Review dimensions** below — so there is exactly one place it can drift from what actually gets sent. Materialize it, the diff, and any Step 2 context to files, then run the helper under `scripts/` to get the model's structured verdict back as JSON.
+Send this prompt to the peer-review model (configured as a model from a different vendor family than the generation model). The peer model must return **only** a JSON object matching the schema defined in the Review dimensions section — no prose before or after, no markdown fence.
 
-The full diff goes in as-is — no redaction, no file exclusion. This is an explicit project decision: the diff is treated the same way it will be treated in version control, not sanitized before showing it to a reviewer.
-
-The helper's exit code is the contract:
-- **0** — `--out` contains `{"issues": [...], "summary": "..."}`. Go to Step 5.
-- **1** — the call was attempted and failed (network error, timeout, non-200 response, or a response that wasn't valid JSON despite requesting JSON mode).
-- **2** — `PEER_REVIEW_API_KEY` isn't set (same as Step 3 — the script re-checks so it's never called without the guard).
-
-For exit codes 1 and 2: **stop, don't retry, don't fall back to self-review.** Report *"Verdict: BLOCK (peer review unavailable)"* and quote the script's stderr as the reason. Do not read partial output and try to salvage a review from it — a failed call produced no trustworthy signal, and presenting anything as if it did would misrepresent what actually happened. This mirrors the same discipline this repo's `verifiable-acceptance-criteria` skill uses for unreachable checks: an unobservable result is not the same as a passing one, and must never be reported as one.
+If the call fails (network error, timeout, non-200 response, or a response that isn't valid JSON): **stop, don't retry, don't fall back to self-review.** Report *"Verdict: BLOCK (peer review unavailable)"* with the failure reason. Do not read partial output and try to salvage a review from it — a failed call produced no trustworthy signal, and presenting anything as if it did would misrepresent what actually happened. This mirrors the same discipline this repo's `verifiable-acceptance-criteria` skill uses for unreachable checks: an unobservable result is not the same as a passing one, and must never be reported as one.
 
 ## Review dimensions
 
@@ -80,7 +85,7 @@ Respond with **only** a JSON object — no prose before or after it, no markdown
 
 ## Step 5 — Render and save the report
 
-On success, `--out` is structured JSON: a list of issues (`severity`, `dimension`, `file`, `title`, `fix`) and a `summary`. Assign sequential ids yourself when rendering (`P.1`, `P.2`, ...) — don't ask the model to number them.
+On success, the peer model returns structured JSON: a list of issues (`severity`, `dimension`, `file`, `title`, `fix`) and a `summary`. Validate that it parses and matches the schema. Assign sequential ids yourself when rendering (`P.1`, `P.2`, ...) — don't ask the model to number them.
 
 Save the report under `.scratch/review-reports/`, named after what was reviewed:
 
