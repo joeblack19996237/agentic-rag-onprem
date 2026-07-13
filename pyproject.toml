@@ -24,6 +24,7 @@ max-complexity = 10
 # point of a test, not a smell — PLR2004 flags `assert x == 200` the same way
 # it flags an unexplained literal buried in application logic.
 "tests/**/*.py" = ["PLR2004"]
-# CLI scripts print to stdout/stderr by design (their entire output contract,
-# per call_peer_review_model.py's own docstring) — not leftover debug output.
-".claude/skills/**/scripts/*.py" = ["T201"]
+# CLI scripts under tools/ print to stdout/stderr by design (their entire
+# output contract, per call_peer_review_model.py's own docstring) — not
+# leftover debug output.
+"tools/*.py" = ["T201"]

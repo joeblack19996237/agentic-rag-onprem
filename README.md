@@ -37,6 +37,7 @@ docs/coding-standards.md  Judgment-call coding conventions a linter can't check 
 .scratch/session-feedback.md  Running log of how sessions went, not what was built — see CLAUDE.md
 .claude/skills/       Skill definitions used to draft, gate, and implement work in this repo
 .pre-commit-config.yaml  Local commit-time gate: ruff, mypy, import-graph check, doc-drift check (see docs/testing.md)
+tools/               Standalone scripts (bash tools/verify.sh, tools/check_pypi_version.py, ...) — see tools/README.md
 tests/architecture/   Import-graph check enforcing specs/04-architecture.md §5.1's module call-direction rules
 tests/docs/           Documentation-drift check — DEC-### reference integrity + README/issue-status sync (CI-enforced)
 {api,retrieve,acl,rerank,generate,verify,audit,ingest,admin,eval,config,widget,cdc,
