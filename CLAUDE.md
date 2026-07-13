@@ -11,6 +11,7 @@ The canonical source of truth for what's being built and why is `specs/` (see be
 - `specs/` — canonical product-level spec set (`00-index.md` is the entry point). See "Product specs" below.
 - `docs/agents/` — per-repo config consumed by the engineering skills (issue tracker, triage labels, domain-doc layout, dev-environment ground truth).
 - `docs/testing.md` — how to write a test in this repo, what to avoid, and a live inventory of every test that actually exists. Update it whenever a test is added, removed, or changes what it covers.
+- `docs/coding-standards.md` — judgment-call coding conventions (naming, error-handling boundaries, security, logging) that a linter can't check. Mechanically-checkable rules live in `pyproject.toml`'s `[tool.ruff.lint]` instead — that file's own "What's enforced by tooling" section maps rule to code. `code-review`/`review`'s Standards axis and `implement` both consume it.
 - `docs/adr/` — repo-level architectural decisions (created lazily by `domain-modeling`/`improve-codebase-architecture`; may not exist yet).
 - `.scratch/<feature>/` — local issue tracker (markdown-based; see "Issue tracker" below).
 - `.scratch/handoff/` — point-in-time onboarding snapshots written for a fresh session with no prior context. Useful starting point, not an evergreen doc — verify against recent git log and the issue tracker before trusting it.

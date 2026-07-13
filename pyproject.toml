@@ -4,3 +4,26 @@
 # `from api.main import app` to resolve the same way everywhere,
 # including CI (which invokes bare `pytest`).
 pythonpath = ["."]
+
+[tool.ruff.lint]
+# Adds the mechanical rules docs/coding-standards.md defers to "the linter"
+# on top of ruff's defaults (E4/E7/E9/F) — extend-select, not select, so the
+# defaults stay active. Each code maps to a specific line in that doc:
+# naming casing (N), print() left in (T20), cyclomatic complexity (C901),
+# magic-number comparisons (PLR2004), hardcoded secrets and SQL string
+# building (S105/S106/S107/S608). Not the full "S" (flake8-bandit) family —
+# S101 alone would flag every `assert` in tests/, which this project uses
+# deliberately and extensively.
+extend-select = ["N", "T20", "C901", "PLR2004", "S105", "S106", "S107", "S608"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.per-file-ignores]
+# Asserting against a literal expected value (status codes, counts) is the
+# point of a test, not a smell — PLR2004 flags `assert x == 200` the same way
+# it flags an unexplained literal buried in application logic.
+"tests/**/*.py" = ["PLR2004"]
+# CLI scripts print to stdout/stderr by design (their entire output contract,
+# per call_peer_review_model.py's own docstring) — not leftover debug output.
+".claude/skills/**/scripts/*.py" = ["T201"]

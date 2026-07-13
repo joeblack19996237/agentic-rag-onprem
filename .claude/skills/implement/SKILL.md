@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 Implement the work described by the user in the PRD or issues.
 
-Follow [CODING-STANDARDS.md](CODING-STANDARDS.md) for the judgment calls a linter can't make — naming clarity, error-handling boundaries, input validation, sensitive-data logging. Everything mechanically checkable (line length, bare `except`, hardcoded secrets, casing) belongs to this repo's linter/pre-commit setup instead, not to a rules file an agent has to remember — that file explains the split in full.
+Follow [docs/coding-standards.md](../../../docs/coding-standards.md) for the judgment calls a linter can't make — naming clarity, error-handling boundaries, input validation, sensitive-data logging. Everything mechanically checkable (line length, bare `except`, hardcoded secrets, casing) belongs to this repo's linter/pre-commit setup instead, not to a rules file an agent has to remember — that file explains the split in full, including exactly which rules are wired up today.
 
 Use /tdd where possible, at pre-agreed seams.
 
