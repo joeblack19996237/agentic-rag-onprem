@@ -32,7 +32,9 @@ The canonical source of truth for what's being built and why is [`specs/`](specs
 specs/              Canonical product-level spec set (entry point: specs/00-index.md)
 docs/agents/        Per-repo config consumed by the engineering skills (issue tracker, triage labels, dev-environment ground truth)
 docs/testing.md     How to write a test here, what to avoid, and the current test inventory
+docs/coding-standards.md  Judgment-call coding conventions a linter can't check (mechanical rules live in pyproject.toml)
 .scratch/            Local issue tracker (markdown-based) — PRDs and implementation issues
+.scratch/session-feedback.md  Running log of how sessions went, not what was built — see CLAUDE.md
 .claude/skills/       Skill definitions used to draft, gate, and implement work in this repo
 .pre-commit-config.yaml  Local commit-time gate: ruff, mypy, import-graph check, doc-drift check (see docs/testing.md)
 tests/architecture/   Import-graph check enforcing specs/04-architecture.md §5.1's module call-direction rules

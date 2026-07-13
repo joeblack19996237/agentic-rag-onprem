@@ -81,4 +81,12 @@ Write one when any of these hold, not only at a phase boundary:
 - A long or risky operation is about to start and the session might not survive to see it through
 - The user explicitly asks to checkpoint or hand off
 
+### Session feedback
+
+`.scratch/session-feedback.md` is a running log of *how the work went*, not what was built — friction points, ambiguous instructions, mistakes caught late, things that worked well enough to repeat. Commit messages and `specs/13-decision-log.md` already cover *what* changed; this file is for the meta-layer neither of those capture, so don't duplicate their content here.
+
+Append an entry before committing a substantial session's work (not for trivial Q&A). Keep entries honest and specific — a vague "went well" entry costs a future reader's attention for nothing. Don't promote every entry's observations into a new standing rule immediately; note them, and only turn a recurring one into an actual rule/checklist item once it's actually recurred (see the file's own entries for the pattern).
+
+Skim the file's existing entries at the start of a session about to do substantial work in this repo, if it hasn't been read recently (check the file's own "Last read" line, and update it when you do). The point is closing the loop between "we noticed a friction point" and "we stopped hitting it" — not accumulating a log nobody rereads.
+
 After committing a handoff doc, tag that commit `handoff/<slug>` (matching the doc's own topic, not necessarily its exact filename) — `git tag -l 'handoff/*'` then finds every handoff point directly, without digging through `git log` by date. Local tags only; pushing one is a separate, explicit decision like any other push.
