@@ -90,4 +90,15 @@ Append an entry before committing a substantial session's work (not for trivial 
 
 Skim the file's existing entries at the start of a session about to do substantial work in this repo, if it hasn't been read recently (check the file's own "Last read" line, and update it when you do). The point is closing the loop between "we noticed a friction point" and "we stopped hitting it" — not accumulating a log nobody rereads.
 
+### Commit history sweeps
+
+Per-commit review (`code-review`, `peer-review`) and the doc-drift check each operate on one diff or one mechanical rule at a time — neither can see a pattern that only shows up *across* many commits: the same bug class fixed twice, a file touched repeatedly for related-but-never-consolidated reasons, a commit message that's stopped accurately describing its own diff. Read `git log` and the recent diffs together, not each one in isolation, and name the pattern, not just the instance — `.scratch/review-reports/commit-sweep-2026-07-13.md` is the reference example (finding F.1: the same concurrent-session propagation risk surfacing twice in different shapes, each time fixed only for the specific instance).
+
+Run one when any of these hold:
+- ~15-20 commits have landed since the last sweep (check the most recent `.scratch/review-reports/commit-sweep-*.md`'s own date/commit-range)
+- A build phase's exit gate closes
+- The user asks for one directly
+
+Unlike the specs/ cross-model review, this doesn't need a different model — the failure mode here is zoom level (per-diff vs. aggregate), not same-family bias — so Claude runs this itself within a normal session rather than handing it to a different tool. Save the report to `.scratch/review-reports/commit-sweep-<date>.md`, matching the existing peer-review/cross-model-review report convention. If `schedule`/`loop` is ever configured for genuine unattended automation, this is a reasonable candidate — but running it as a documented in-session trigger, not a background cron job, matches this project's actual demo-stage scale (see the cross-model review's own R.15 finding on production-grade process for a solo project).
+
 After committing a handoff doc, tag that commit `handoff/<slug>` (matching the doc's own topic, not necessarily its exact filename) — `git tag -l 'handoff/*'` then finds every handoff point directly, without digging through `git log` by date. Local tags only; pushing one is a separate, explicit decision like any other push.
