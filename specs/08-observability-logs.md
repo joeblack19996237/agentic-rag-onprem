@@ -3,6 +3,8 @@
 > Stage 7 (`spec-writer`) deliverable. Expands `04-architecture.md` §12.3-§12.4's observability sketch into full log schema, metrics, traces, dashboards, alerts, and SLOs. Follows the OpenTelemetry GenAI semantic conventions already chosen at Stage 1 (`90-stage1-trend-research.md` §3.3) and pinned at Stage 4 (DEC-016, NFR-026).
 >
 > **Post-Stage-8 update (DEC-128, NFR-033, 2026-07-08)**: the span structure below originally carried only generic GenAI attributes, which support latency diagnosis but not accuracy diagnosis. Domain-specific attributes, an `nli_entailment_score` histogram, a reconciled sampling statement, and a trace-to-regression-test path were added — see the Span Structure, Metrics, and Traces sections below.
+>
+> **Scope-vs-capacity note (added 2026-07-13, cross-model review R.15)**: the alert routing, LCC-service-tier hooks, and on-call-style severity classification in this file are production-service-grade, sized for the full-team scope DEC-081 committed to keeping rather than cutting for the solo path — see `confirmed-context.md` RISK-007 for the explicit trade-off (same scope, longer solo timeline, not a scope cut) and its acknowledged open question of whether solo capacity can sustainably operate this complexity regardless of timeline. Not every alert/runbook here needs a real on-call rotation before a first demo.
 
 ## Plain-English Summary
 
@@ -19,8 +21,8 @@ Three separate things are easy to conflate and must stay separate: operational l
 
 | SLO | SLI | Target | Source |
 |---|---|---|---|
-| Query latency | p95 end-to-end latency, warm-cache | ≤ 8s (comfortably ≤ 7,240ms per the §7B.12 budget, ~760ms headroom) | NFR-005 |
-| Query latency, cold-cache | p95 end-to-end latency, cold-cache (first query of a session) | ≤ 8s (≤ 7,890ms per DEC-097, ~110ms headroom — thin, flagged as a risk to revisit if retrieval-rail scan cost grows) | NFR-005, DEC-097 |
+| Query latency | p95 end-to-end latency, warm-cache | ≤ 8s (comfortably ≤ 7,190ms per the §7B.12 budget, ~810ms headroom — corrected 2026-07-13, cross-model review R.18: rerank line item was 150ms, didn't match NFR-027's 100ms) | NFR-005 |
+| Query latency, cold-cache | p95 end-to-end latency, cold-cache (first query of a session) | ≤ 8s (≤ 7,840ms per DEC-097 + R.18 correction, ~160ms headroom — thin, flagged as a risk to revisit if retrieval-rail scan cost grows) | NFR-005, DEC-097 |
 | Citation hit-rate | % of emitted citations landing in the current turn's `reranked_set` | 100% (hard gate, not a target — any miss is a `low_grounding` refusal, not a metric to average) | NFR-004 |
 | Refusal rate on golden no-answer set | % correctly refused | ≥ 95% (MVP), ≥ 98% (V2 target) | `01-product-brief.md` §9.1 |
 | Ingest throughput | Pages/minute on reference hardware | ≥ 100 | NFR-006 |
@@ -118,6 +120,8 @@ Required attributes per span: `gen_ai.system`, `gen_ai.request.model`, `gen_ai.r
 | `retrieve` | `candidate_count`, `retrieval_top1_score` | How many candidates came back and how strong the top match was, without opening `audit_events` |
 | `rerank` | `rerank_score_delta` (top-1 score before vs. after rerank), `top_k` | Whether reranking materially changed the ranking, and at what candidate-set size |
 | `verify` | `mechanical_fast_path`/`nli_slow_path` verdict; per-claim NLI entailment score array (present only when `nli_slow_path` ran) | Localizes a `low_grounding` refusal to a specific claim and score, not just a binary pass/fail |
+| `safety_input` | `safety_input_flagged` (bool), `safety_input_categories` (list, e.g. `["jailbreak", "prompt_injection"]`), `safety_input_confidence` (0-1) | **Added 2026-07-13, cross-model review R.13.** Localizes a `policy_blocked` refusal to the input rail specifically — which hazard category and how confident — without opening `audit_events`. Mirrors `SafetyVerdict`'s `flagged`/`categories`/`confidence` fields (`04-architecture.md` §4.3); `raw_response` stays audit-only, not on the span, consistent with this table's no-content-on-spans rule |
+| `safety_output` | `safety_output_flagged` (bool), `safety_output_categories` (list, e.g. `["s1_violence", "s4_hate"]`), `safety_output_confidence` (0-1) | **Added 2026-07-13, cross-model review R.13.** Same, for the output rail |
 | root `gen_ai.request` | `prompt_version`, `embedding_model_version`, `reranker_model_version`, `safety_input_version`, `safety_output_version` | Mirrors `audit_events.context_fingerprint` (DEC-060/DEC-089) so "did quality change after a release" is answerable from traces alone, without cross-referencing content-bearing audit records |
 
 All of these are scores, counts, or version strings — never raw query/chunk/answer text. See Privacy Rules below for why this doesn't reopen the no-content-in-traces rule.
@@ -133,6 +137,8 @@ All of these are scores, counts, or version strings — never raw query/chunk/an
 ### Trace-to-Regression Promotion (MVP, DEC-128)
 
 A production trace that reveals a genuine quality gap should be able to become a permanent regression test, not just a one-off diagnosis — this is standard practice for a system whose correctness is measured against a golden set rather than unit-tested line by line. `23-evals-guardrails.md` §2.2 already documents an automated version of this for the **V2 customer-specific golden set** (REQ-023): human-reviewed traces with disagreements promote automatically. MVP does not have that tooling yet, so it reuses an existing manual process instead of waiting for it: `23-evals-guardrails.md` §6's "Quarterly LCC review" already samples 50 production answers for manual grading — when that review turns up an answer that exposes a real gap in the standard golden set (not just a corpus-specific one-off), add it as a new smoke- or full-ring prompt, tagged with its source `request_id` so the originating trace stays traceable. No new build task or infrastructure is required; this is a documented step added to an already-scheduled review.
+
+**MVP fallback for installations without an active LCC engagement (added 2026-07-13, cross-model review R.23)**: §6's "Quarterly LCC review" is titled an LCC-service activity without a stated tier, unlike the adjacent "Model upgrade (LCC Tier 3)" row — a self-hosted MVP install with no LCC engagement can't tell whether it applies to them. It doesn't need to: the promotion mechanism itself has no LCC dependency, only the *scheduled cadence* of sampling does. For installs without an LCC engagement, the operator runs `cli eval promote --from-traces <timerange>` manually (same CLI family as `cli eval run --suite golden`, REQ-013) to sample and review recent traces on their own schedule. The quarterly cadence is a recommendation that comes bundled with an LCC engagement, not a hard dependency of the promotion mechanism.
 
 ## Dashboards
 
@@ -182,9 +188,10 @@ This should not happen — treat as Critical per the alert table above, not as "
 
 **Example 3 — "Refusal rate crept up after last week's deploy — which claim is failing, and was it the deploy?"** (NFR-033, DEC-128)
 1. Pull a handful of the newly-refused queries' traces via `request_id` — no need to open `audit_events` first
-2. Check the root span's `prompt_version`/`embedding_model_version`/`reranker_model_version` against last week's known-good values — if any changed, that's the first suspect, confirmed without a separate deploy-log cross-reference
-3. On the `verify` span, read the per-claim NLI scores directly: scores clustered just under the 0.5 threshold (e.g. 0.3-0.49) point to a miscalibrated threshold — the same diagnosis `23-evals-guardrails.md` §7.1 step 4 already describes, now reachable from the trace instead of requiring a manual `audit_events` sample
-4. Cross-check against the `nli_entailment_score` histogram (Metrics) for the affected time window — a visible leftward shift in the whole distribution (not just individual borderline cases) points to a real regression, not query-mix noise
+2. **Branch on refusal category first (added 2026-07-13, cross-model review R.13 — this step previously assumed every refusal was grounding-related, which is false for `policy_blocked`)**: check whether `safety_input_flagged` or `safety_output_flagged` is `true` on the trace. If either is `true`, the refusal is `policy_blocked`, not `low_grounding` — inspect that rail's `categories`/`confidence` attributes and stop here; a deploy that changed `safety_input_version`/`safety_output_version` (root span) is the first suspect, not the NLI threshold. If neither is flagged, continue to step 3 as a grounding-related (`low_grounding`) refusal
+3. Check the root span's `prompt_version`/`embedding_model_version`/`reranker_model_version` against last week's known-good values — if any changed, that's the first suspect, confirmed without a separate deploy-log cross-reference
+4. On the `verify` span, read the per-claim NLI scores directly: scores clustered just under the 0.5 threshold (e.g. 0.3-0.49) point to a miscalibrated threshold — the same diagnosis `23-evals-guardrails.md` §7.1 step 4 already describes, now reachable from the trace instead of requiring a manual `audit_events` sample
+5. Cross-check against the `nli_entailment_score` histogram (Metrics) for the affected time window — a visible leftward shift in the whole distribution (not just individual borderline cases) points to a real regression, not query-mix noise
 
 ## Dependencies
 

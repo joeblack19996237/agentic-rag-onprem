@@ -10,7 +10,8 @@ Four layers, in ascending scope: unit (single node/function), integration (multi
 
 | Environment | Purpose |
 |---|---|
-| Local/CI | Unit + integration tests against dockerized Postgres/Qdrant/Redis test instances; no real GPU (mocked model responses where a test doesn't need real inference) |
+| Local/CI | Unit + integration tests against dockerized Postgres/Qdrant/Redis test instances; no real GPU (mocked model responses where a test doesn't need real inference) — describes a Docker-provisioned human/CI machine, not necessarily what an implementing agent itself can reach; see the row below |
+| Agent execution sandbox | What an agent implementing a Phase 2+ task can itself run and evidence directly, per `docs/agents/dev-environment.md`'s probed ground truth — currently no Docker, no GPU, no C/C++ toolchain. Verification here uses fake/stub-backed unit + integration tests and contract/schema checks (DEC-135 Tiers 1-2); anything needing a live Postgres/Qdrant/Redis/vLLM/etc. is `[manual-verify]`, owned by DevOps/dev rig (DEC-135 Tier 3) |
 | Dev rig (RunPod) | Full-stack integration + E2E tests requiring real model inference (safety-rail accuracy, NLI scoring, generation quality) |
 | Air-gap simulation | REQ-012 verification: network namespace blocked, full eval suite run |
 | Customer-representative rig | Hardware-validation tests per `09-deployment-ops.md`'s measured-VRAM methodology |
@@ -111,6 +112,7 @@ MVP's only UI surface is the embeddable widget (`91-stage3-ux-skip.md`) — basi
 | TEST-032 | Performance | NFR-005 | Latency at 1/2/5/8 concurrent users, cache-priming sweep | p95 ≤ 8s at every concurrency level within the documented cold/warm-cache regime |
 | TEST-033 | Performance | NFR-006 | Ingest throughput | ≥ 100 pages/minute on reference hardware |
 | TEST-034 | Performance | NFR-027 | TEI rerank latency, ONNX Runtime backend | p95 ≤ 100ms at top-K=50 |
+| TEST-041 | Performance | NFR-022 | **Added 2026-07-13, cross-model review R.17** — per-rail latency: `safety_input`, `safety_output`, `policy/` join overhead, measured independently via OTEL GenAI span timing | `safety_input` p95 ≤ 150ms; `safety_output` p95 ≤ 250ms; `policy/` additive overhead p95 ≤ 30ms |
 
 ## AI Evals
 

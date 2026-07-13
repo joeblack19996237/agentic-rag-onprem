@@ -401,7 +401,7 @@ The pure JIT pattern queries the source PDP on every retrieval — safest, most 
 
 ### Mature frameworks / models
 - **NeMo Guardrails** (NVIDIA) — orchestration layer; input rails, retrieval rails, output rails; dialog state management ([Spheron 2026](https://www.spheron.network/blog/nemo-guardrails-production-deployment-llm-gpu-cloud/); `medium`).
-- **Llama Guard 3 8B** — Meta's hazard classifier; binary safe/unsafe + hazard category labels.
+- **Llama Guard 3 8B** — Meta's hazard classifier; binary safe/unsafe + hazard category labels. **Checked 2026-07-13 (DEC-136) against live sources**: Meta's current flagship is actually **Llama Guard 4** (12B multimodal, shipped April 2025, predates this benchmark) — evaluated and MVP keeps Guard 3 8B anyway, since GroundedDocs is text-only and Guard 4's multimodal footprint doesn't fit the VRAM budget for a capability this product doesn't use. See DEC-136 for the full comparison.
 - **Llama Prompt Guard 2 (86M)** — fast jailbreak/prompt-injection gate.
 - **Guardrails AI** — output-validation library; mature 2026 option for structured-output enforcement.
 - **LlamaFirewall** — open-source guardrail system for agentic AI ([arXiv 2505.03574](https://arxiv.org/pdf/2505.03574); `low`).

@@ -1,0 +1,44 @@
+# Deterministic pre-commit baseline. Mirrors .github/workflows/ci.yml's
+# lint/type-check/architecture/doc-drift steps exactly (ruff check, mypy .,
+# the two scoped pytest checks) — no hook here that CI doesn't also run, so
+# pre-commit and CI never disagree about what's "clean." In particular this
+# deliberately omits ruff-format: CI never enforces ruff's formatter, and a
+# first-time repo-wide reformat would touch pre-existing files (including
+# hand-authored .claude/skills/ scripts) outside whatever change is actually
+# being committed — out of scope for this hook, not something to fix here.
+#
+# Also deliberately excludes tests/api/test_ready.py: it's a deliberately-red
+# test right now (Phase 1 has no backend services wired up — see that test's
+# own docstring and .scratch/phase-1-bootstrap/issues/03-first-failing-smoke-test.md).
+# A commit-blocking hook that's red by design would train contributors to
+# reach for --no-verify, which defeats the point of having hooks at all.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.21  # verified current via `gh api repos/astral-sh/ruff-pre-commit/tags` on 2026-07-13 — re-verify before bumping, don't trust a remembered pin (DEC-131 precedent)
+    hooks:
+      - id: ruff
+        args: [--fix]
+
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: mypy
+        args: ["."]
+        language: system
+        types: [python]
+        pass_filenames: false
+
+      - id: import-graph-check
+        name: Architecture import-graph check
+        entry: pytest tests/architecture/test_import_graph.py -q
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: doc-drift-check
+        name: Documentation drift check (DEC-### integrity, README/issue-status sync)
+        entry: pytest tests/docs/test_doc_drift.py -q
+        language: system
+        pass_filenames: false
+        always_run: true

@@ -17,7 +17,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          pip install ruff mypy pytest
+          pip install -r requirements-dev.txt
 
       - name: Lint (ruff)
         run: ruff check .
@@ -27,6 +27,9 @@ jobs:
 
       - name: Architecture import-graph check
         run: pytest tests/architecture/test_import_graph.py -q
+
+      - name: Documentation drift check (DEC-### integrity, README/issue-status sync)
+        run: pytest tests/docs/test_doc_drift.py -v
 
       - name: Smoke test (GET /ready) — expected red at this phase
         run: pytest tests/api/test_ready.py -v

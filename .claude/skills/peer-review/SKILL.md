@@ -11,6 +11,8 @@ This isn't a new idea for this project. `specs/13-decision-log.md` DEC-130 alrea
 
 Run `/code-review` and `peer-review` as two separate, complementary gates. Neither replaces the other — see the comparison table at the end.
 
+This skill reviews a **code diff**. For reviewing `specs/` content itself with a non-Claude model — a different, standing gap this project has (see `CLAUDE.md`'s "Product specs" section for when it's due) — use the portable prompt at `specs-review-prompt.md` in this same directory instead; it's not invoked as a Claude Code skill, since the point is running it in a genuinely different tool.
+
 This skill triggers the same way every other skill here does: the `/peer-review` command, or saying "peer review", "another model's opinion", "cross-model review" (etc. — see the description) in conversation.
 
 ## Step 1 — Pin the fixed point and scope the diff

@@ -4,6 +4,8 @@
 
 Last probed: 2026-07-11
 
+The no-Docker/no-GPU/no-C++-toolchain ceiling recorded below drives `specs/13-decision-log.md` DEC-135's Phase 2+ verification-tiering strategy (fake-backed tests as the agent-executable default; live-service checks are `[manual-verify]`). Re-check both this file and DEC-135 together if this environment's capabilities change.
+
 ## Local tooling
 
 | Capability | Probe command | Result | Notes |

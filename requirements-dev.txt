@@ -1,0 +1,12 @@
+# Dev-only tooling — lint/type-check/pre-commit, not shipped with the product.
+# Same split as requirements-llama-cpp.txt: isolated because these aren't
+# runtime dependencies of api/ or any docker-compose service.
+#
+# Versions verified live via PyPI JSON metadata on 2026-07-13, per this
+# repo's dependency-version discipline (specs/13-decision-log.md DEC-131..133)
+# — re-verify before bumping rather than trusting a remembered "current"
+# version, since ruff in particular ships frequently.
+ruff==0.15.21
+mypy==2.2.0
+pytest==9.1.1
+pre-commit==4.6.0
