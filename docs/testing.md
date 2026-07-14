@@ -33,6 +33,8 @@ The 3 test modules that exist today (see inventory below) all follow the same sh
 
 All three run in CI on every push/PR (`.github/workflows/ci.yml`) and, except the intentionally-red `/ready` smoke test, as a local pre-commit gate too (`.pre-commit-config.yaml` — `pre-commit install` once per clone). Run everything locally with `pytest` from the repo root — see `CLAUDE.md`'s "Running and verifying this repo" for the full local-verification command list (`ruff check .`, `mypy .`, `pytest`).
 
+This inventory — and whether each test's assertions actually verify what they claim to, not just whether they pass — is periodically re-audited by `.claude/skills/test-audit/SKILL.md`. See `CLAUDE.md`'s "Test-quality audits" section for when to run it; `.scratch/review-reports/test-audit-2026-07-14.md` is the first run (clean).
+
 ## Planned but not yet implemented
 
 `specs/11-test-plan.md` is the canonical, spec-level catalog of every test planned across Phase 2+ (`TEST-001`..`TEST-040`: unit, integration, contract, and E2E layers, each traced to a `REQ-###`/`NFR-###`). Its Test Environments table (amended by DEC-135) records which environment tier each planned test targets — check it before assuming a planned test can run in this agent's own sandbox. When a `TEST-###` gets implemented, add its module to the inventory table above; this file tracks what exists, `11-test-plan.md` tracks what's planned.
