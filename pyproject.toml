@@ -25,6 +25,6 @@ max-complexity = 10
 # it flags an unexplained literal buried in application logic.
 "tests/**/*.py" = ["PLR2004"]
 # CLI scripts under tools/ print to stdout/stderr by design (their entire
-# output contract, per call_peer_review_model.py's own docstring) — not
+# output contract, per check_pypi_version.py's own docstring) — not
 # leftover debug output.
 "tools/*.py" = ["T201"]

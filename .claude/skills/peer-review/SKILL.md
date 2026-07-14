@@ -32,18 +32,20 @@ This ensures each peer review covers only new code since the last review, with n
 
 The peer model can't judge "does this implement what was asked" without knowing what was asked. Use the same search `/code-review` step 2 uses: issue references in commit messages, a path the user passed, or a PRD/spec file under `docs/`, `specs/`, or `.scratch/` matching the branch or feature. If nothing is found, proceed without it — the Functionality dimension below explicitly skips itself when there's no context to check against; Security/Performance/Design checks don't need one.
 
-## Step 3 — Send the diff to the peer model for review
+## Step 3 — Assemble the review package for the user to run externally
 
-The review rubric lives in this file — see **Review dimensions** below — so there is exactly one place it can drift from what actually gets sent.
+**(Updated 2026-07-14)** The peer model call is not made by Claude in this session — the user runs it externally, in a separate IDE/tool/model, the same standing pattern this skill's own `specs-review-prompt.md` sibling already uses for reviewing `specs/` content (see line above). `tools/call_peer_review_model.py`, which used to make this call from inside a Claude Code session, was removed once the user confirmed this is the actual workflow going forward — a script that calls an external model on Claude's behalf is redundant once the call itself happens outside this tool entirely.
 
-Construct a prompt that includes:
+The review rubric lives in this file — see **Review dimensions** below — so there is exactly one place it can drift from what actually gets assembled.
+
+Assemble one self-contained prompt containing:
 1. The full diff (no redaction, no file exclusion — the diff is treated the same way it will be treated in version control)
 2. Any spec context gathered in Step 2
 3. The **Review dimensions** rubric and the JSON output schema from this file
 
-Send this prompt to the peer-review model (configured as a model from a different vendor family than the generation model). The peer model must return **only** a JSON object matching the schema defined in the Review dimensions section — no prose before or after, no markdown fence.
+Give this assembled prompt to the user (write it to a file under `.scratch/review-reports/` if it's long, or inline in the response if short) for them to paste into their own external tool/model. Tell them plainly what to send and what shape of answer to bring back (the JSON schema below) — then wait. Once they return with the peer model's output, proceed to Step 5.
 
-If the call fails (network error, timeout, non-200 response, or a response that isn't valid JSON): **stop, don't retry, don't fall back to self-review.** Report *"Verdict: BLOCK (peer review unavailable)"* with the failure reason. Do not read partial output and try to salvage a review from it — a failed call produced no trustworthy signal, and presenting anything as if it did would misrepresent what actually happened. This mirrors the same discipline this repo's `verifiable-acceptance-criteria` skill uses for unreachable checks: an unobservable result is not the same as a passing one, and must never be reported as one.
+If the user reports they couldn't get a review (tool unavailable, model refused, output wasn't valid JSON): **don't retry on their behalf, don't fall back to self-review.** Report *"Verdict: BLOCK (peer review unavailable)"* with whatever reason they gave. Do not try to salvage a review from a partial or malformed answer — an unusable result is not the same as a passing one, and must never be reported as one. This mirrors the same discipline this repo's `verifiable-acceptance-criteria` skill uses for unreachable checks.
 
 ## Review dimensions
 
@@ -87,7 +89,7 @@ Respond with **only** a JSON object — no prose before or after it, no markdown
 
 ## Step 5 — Render and save the report
 
-On success, the peer model returns structured JSON: a list of issues (`severity`, `dimension`, `file`, `title`, `fix`) and a `summary`. Validate that it parses and matches the schema. Assign sequential ids yourself when rendering (`P.1`, `P.2`, ...) — don't ask the model to number them.
+Once the user pastes back the peer model's output: it should be structured JSON — a list of issues (`severity`, `dimension`, `file`, `title`, `fix`) and a `summary`. Validate that it parses and matches the schema before trusting it; if it doesn't (extra prose, a markdown fence, malformed JSON), ask the user to strip it down or re-paste rather than guessing at what they meant. Assign sequential ids yourself when rendering (`P.1`, `P.2`, ...) — don't ask the model to number them.
 
 Save the report under `.scratch/review-reports/`, named after what was reviewed:
 
@@ -132,4 +134,4 @@ Verdict, from the severities the peer model actually reported (this is a *differ
 | Bias removed | Path-dependency (the drafting conversation's blind spots) | Model-family blind spots (Claude reviewing Claude) |
 | Axes | Standards + Spec | Functionality + Security + Performance + Design/Quality |
 
-Run both on a nontrivial diff before merging or closing an issue. Skip `peer-review` for trivial, low-risk changes (typo fixes, comment-only edits) where the API round-trip isn't worth spending — use judgment, same as `/code-review` does.
+Run both on a nontrivial diff before merging or closing an issue. Skip `peer-review` for trivial, low-risk changes (typo fixes, comment-only edits) where round-tripping through a separate external tool isn't worth the user's time — use judgment, same as `/code-review` does.

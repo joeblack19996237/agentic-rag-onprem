@@ -10,8 +10,9 @@ DEC-131/132/133/136/138 are all real cases this caught). This script is that
 same one-line urllib.request call, promoted to a reusable tool instead of
 being retyped as an inline `python -c "..."` each time.
 
-Uses only the standard library, same reasoning as tools/call_peer_review_model.py:
-runs anywhere Python 3 does, no extra install step before you can use it.
+Uses only the standard library, per tools/README.md's "how to write a good
+script for this repo" convention: runs anywhere Python 3 does, no extra
+install step before you can use it.
 
 Exit codes:
   0 - looked up successfully; latest version printed to stdout
