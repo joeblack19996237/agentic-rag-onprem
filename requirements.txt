@@ -30,4 +30,6 @@ qdrant-client==1.18.0     # DEC-034 — vector store client
 psycopg[binary]==3.3.4    # DEC-034 — Postgres driver; binary extra avoids libpq build-from-source
 redis==8.0.1              # DEC-076 — Redis/Valkey hot-path cache client
 PyYAML==6.0.3             # config loading (config/ module) + compose-file verification
+SQLAlchemy==2.0.51        # TASK-006 — ORM layer for db/ + per-module models; verified live via PyPI, 2026-07-14
+alembic==1.18.5           # TASK-006 — schema migrations (hand-authored, --autogenerate unavailable in this sandbox per DEC-135/DEC-140/DEC-141 — see docs/agents/dev-environment.md); verified live via PyPI, 2026-07-14
 

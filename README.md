@@ -22,10 +22,10 @@ See [`specs/01-product-brief.md`](specs/01-product-brief.md) for the full proble
 - ✅ phase-1-bootstrap Issue 02 — architecture import-graph check (enforces the module call-direction rules in CI) + CI baseline
 - ✅ phase-1-bootstrap Issue 03 — first failing smoke test: a minimal `GET /ready` endpoint (Pydantic-typed, no live backend calls) with a test that deliberately still fails, since `ready: true` isn't honest until real services exist
 
-**Phase 2 (core domain + data foundation)** has started. Two issues published, neither implemented yet:
+**Phase 2 (core domain + data foundation)** has started. Two issues published and agent-closeable work complete on both — each still has a live-service `[manual-verify]` item (no Docker in this environment, `docs/agents/dev-environment.md`):
 
-- ⏳ data-foundation Issue 01 — Postgres schema migration (9 tables per `specs/07-database.md`, hand-authored Alembic migration)
-- ⏳ data-foundation Issue 02 — Qdrant collection + 5 mandatory payload indexes
+- ✅ data-foundation Issue 01 — Postgres schema migration (9 tables per `specs/07-database.md`, hand-authored Alembic migration; offline `--sql` DDL rendering verified, live Postgres run pending)
+- ✅ data-foundation Issue 02 — Qdrant collection + 5 mandatory payload indexes (vector config + Layer 1 filter semantics verified against a real embedded client; live-server index-existence check pending)
 
 If this list looks out of date, [`.scratch/phase-1-bootstrap/issues/`](.scratch/phase-1-bootstrap/issues/) and [`.scratch/data-foundation/issues/`](.scratch/data-foundation/issues/) (or the next phase's issue directory) are the authoritative status, not this README.
 

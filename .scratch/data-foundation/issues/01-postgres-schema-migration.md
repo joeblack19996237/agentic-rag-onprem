@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: ready-for-human
 
 # Issue 01: Postgres Schema Migration
 
@@ -24,14 +24,18 @@ Instead, put the shared Base/engine/session in a new top-level `db/` directory, 
 
 ## Acceptance criteria
 
-- [ ] SQLAlchemy and Alembic are pinned in `requirements.txt` and importable
+- [x] SQLAlchemy and Alembic are pinned in `requirements.txt` and importable
       Verification: `grep -E "^(SQLAlchemy|[Aa]lembic)==" requirements.txt` finds both lines, and `python -c "import sqlalchemy, alembic"` → exit 0
-- [ ] The hand-authored migration renders correct DDL for all 9 tables with their stated constraints
+      **Done (2026-07-14)**: `SQLAlchemy==2.0.51` and `alembic==1.18.5` pinned in `requirements.txt` (live-verified via PyPI, `cp314`-compatible wheels confirmed installable). `python -c "import sqlalchemy, alembic, pytest_mock"` → `sqlalchemy 2.0.51`, `alembic 1.18.5`, exit 0.
+- [x] The hand-authored migration renders correct DDL for all 9 tables with their stated constraints
       Verification: `alembic upgrade head --sql` (offline mode, `postgresql` dialect target, no live connection) → output contains 9 `CREATE TABLE` statements (one per table name above), the `document_versions.document_id → documents.document_id` foreign key with no `ON DELETE CASCADE`, `job_queue`'s `CHECK (status IN ('pending', 'in_progress', 'complete', 'failed'))`, and `model_versions`' partial unique index (`CREATE UNIQUE INDEX ... WHERE is_active = true` or equivalent)
-- [ ] `audit_events` immutability is enforced at the database role level, not just application discipline
+      **Done (2026-07-14)**: `alembic/versions/0001_initial_schema.py` hand-authored with `op.*` calls for all 9 tables. `alembic upgrade head --sql` output confirmed via `pytest tests/db/test_migration.py -v` (7 tests, all pass) — 9 `CREATE TABLE` statements present, FK reads `ON DELETE RESTRICT` with no `CASCADE` anywhere in the output, `job_queue`'s exact CHECK text present, `model_versions`' `CREATE UNIQUE INDEX ix_model_versions_one_active_per_role ON model_versions (role) WHERE is_active = true;` present.
+- [x] `audit_events` immutability is enforced at the database role level, not just application discipline
       Verification: the same `alembic upgrade head --sql` output contains a `REVOKE UPDATE, DELETE ON audit_events FROM <runtime_role>` statement (or equivalent role-scoped revoke)
-- [ ] The migration is structurally reversible
+      **Done (2026-07-14)**: output contains `REVOKE UPDATE, DELETE ON audit_events FROM app_runtime_role;` verbatim (`test_upgrade_revokes_update_delete_on_audit_events`, passing).
+- [x] The migration is structurally reversible
       Verification: `alembic downgrade <revision>:base --sql` — note the explicit `<fromrev>:<torev>` form is required; bare `alembic downgrade base --sql` fails offline with `FAILED: downgrade with --sql requires <fromrev>:<torev>` (confirmed empirically this session) — generates valid `DROP TABLE` statements for all 9 tables with no error
+      **Done (2026-07-14)**: `alembic downgrade 0001:base --sql` → 9 `DROP TABLE` statements (`ix_model_versions_one_active_per_role` dropped explicitly first), no error. Bare `alembic downgrade base --sql` confirmed to still fail with the documented message — both behaviors pinned by `test_downgrade_drops_all_nine_tables_offline` and `test_bare_downgrade_base_fails_offline_without_explicit_revision_range`, both passing.
 
 This proves the migration's DDL content and structural reversibility, not that it actually runs against a real server — that gap is the manual-verify item below, matching `specs/13-decision-log.md` DEC-135's Tier 1/2 (agent-executable, offline rendering) vs. Tier 3 (live-service) split for this exact class of check.
 

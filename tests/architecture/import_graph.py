@@ -19,6 +19,14 @@ than a silent judgment call:
 - Partial-access carve-outs (e.g. cdc/'s cache/ access being invalidation-only,
   not a full ban) are excluded — this check only encodes clean-cut forbidden
   edges, not partial-access nuances.
+
+`db` (added Issue 01, 2026-07-14, data-foundation/TASK-006) is **not** part of
+§5.1's original 17-module map — it's a new, non-pipeline infrastructure
+directory (shared SQLAlchemy Base/engine/session), the same category `tests/`
+and `tools/` already occupy outside this map. It gets the same blanket-ban
+treatment as `rerank/`/`config/`/`eval/`/`widget/` for the same reason
+(nothing should reach the rest of the system by importing *into* a module
+meant to be a leaf), extended here by implementation, not by an §5.1 citation.
 """
 
 import ast
@@ -27,7 +35,7 @@ from pathlib import Path
 MODULES = {
     "api", "retrieve", "acl", "rerank", "generate", "verify", "audit",
     "ingest", "admin", "eval", "config", "widget", "cdc",
-    "safety_input", "safety_output", "policy", "cache",
+    "safety_input", "safety_output", "policy", "cache", "db",
 }
 
 
@@ -35,24 +43,38 @@ def _all_other_modules(module: str) -> set[str]:
     return MODULES - {module}
 
 
+def _all_other_pipeline_modules(module: str) -> set[str]:
+    """Same as `_all_other_modules`, minus `db` -- every one of the four
+    "reach everything only through an external interface" modules
+    (`rerank/`, `config/`, `eval/`, `widget/`) still needs direct access to
+    the shared persistence layer for its own models (specs/05-data-model.md's
+    Owner column assigns `config/` and `eval/` real tables). `db/` isn't "the
+    rest of the system" in the sense this blanket ban exists to protect
+    against -- it's foundational infrastructure every owning module reaches
+    directly, the same way none of these modules are banned from importing
+    the standard library either."""
+    return _all_other_modules(module) - {"db"}
+
+
 FORBIDDEN_IMPORTS: dict[str, set[str]] = {
     "api": set(),
     "retrieve": {"generate", "acl", "verify"},
     "acl": {"retrieve", "generate"},
-    "rerank": _all_other_modules("rerank"),
+    "rerank": _all_other_pipeline_modules("rerank"),
     "generate": {"verify", "retrieve", "audit"},
     "verify": set(),
     "audit": {"generate"},
     "cdc": {"retrieve", "generate", "verify"},
     "ingest": {"verify"},
     "admin": {"retrieve", "generate"},
-    "eval": _all_other_modules("eval"),
-    "config": _all_other_modules("config"),
-    "widget": _all_other_modules("widget"),
+    "eval": _all_other_pipeline_modules("eval"),
+    "config": _all_other_pipeline_modules("config"),
+    "widget": _all_other_pipeline_modules("widget"),
     "safety_input": {"retrieve", "acl", "generate", "verify"},
     "safety_output": {"verify", "generate", "retrieve"},
     "policy": {"generate", "retrieve", "rerank"},
     "cache": set(),
+    "db": _all_other_modules("db"),
 }
 
 

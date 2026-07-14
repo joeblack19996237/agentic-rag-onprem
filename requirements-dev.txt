@@ -10,3 +10,4 @@ ruff==0.15.21
 mypy==2.2.0
 pytest==9.1.1
 pre-commit==4.6.0
+pytest-mock==3.15.1       # TASK-007 — mocker.spy for call-inspection tests; verified live via PyPI, 2026-07-14
