@@ -66,7 +66,7 @@ def test_detects_duplicate_dec_ids(tmp_path):
 
 def test_detects_a_closed_issue_still_shown_pending_in_readme(tmp_path):
     (tmp_path / "README.md").write_text(
-        "- ⏳ Issue 03 — some task (next up)\n", encoding="utf-8"
+        "- ⏳ feature Issue 03 — some task (next up)\n", encoding="utf-8"
     )
     issues_dir = tmp_path / ".scratch" / "feature" / "issues"
     issues_dir.mkdir(parents=True)
@@ -77,12 +77,12 @@ def test_detects_a_closed_issue_still_shown_pending_in_readme(tmp_path):
     violations = find_issue_status_mismatches(tmp_path)
 
     assert len(violations) == 1
-    assert "Issue 3" in violations[0]
+    assert "feature Issue 3" in violations[0]
 
 
 def test_detects_a_premature_done_claim_in_readme(tmp_path):
     (tmp_path / "README.md").write_text(
-        "- ✅ Issue 05 — some task\n", encoding="utf-8"
+        "- ✅ feature Issue 05 — some task\n", encoding="utf-8"
     )
     issues_dir = tmp_path / ".scratch" / "feature" / "issues"
     issues_dir.mkdir(parents=True)
@@ -93,17 +93,43 @@ def test_detects_a_premature_done_claim_in_readme(tmp_path):
     violations = find_issue_status_mismatches(tmp_path)
 
     assert len(violations) == 1
-    assert "Issue 5" in violations[0]
+    assert "feature Issue 5" in violations[0]
 
 
 def test_no_mismatch_when_readme_and_status_agree(tmp_path):
     (tmp_path / "README.md").write_text(
-        "- ✅ Issue 03 — some task\n", encoding="utf-8"
+        "- ✅ feature Issue 03 — some task\n", encoding="utf-8"
     )
     issues_dir = tmp_path / ".scratch" / "feature" / "issues"
     issues_dir.mkdir(parents=True)
     (issues_dir / "03-some-task.md").write_text(
         "Status: ready-for-human\n", encoding="utf-8"
+    )
+
+    assert find_issue_status_mismatches(tmp_path) == []
+
+
+def test_distinguishes_same_numbered_issues_across_different_features(tmp_path):
+    """Regression test: two features each restart numbering at 01 (the
+    documented convention, docs/agents/issue-tracker.md) — this must not
+    conflate them into one status lookup entry. This is the exact scenario
+    that silently collided before feature-slug scoping was added: a fresh
+    'data-foundation' Issue 01 landing alongside an existing
+    'phase-1-bootstrap' Issue 01 with a different status."""
+    (tmp_path / "README.md").write_text(
+        "- ✅ alpha-feature Issue 01 — done task\n"
+        "- ⏳ beta-feature Issue 01 — different, not-done task\n",
+        encoding="utf-8",
+    )
+    alpha_dir = tmp_path / ".scratch" / "alpha-feature" / "issues"
+    alpha_dir.mkdir(parents=True)
+    (alpha_dir / "01-done-task.md").write_text(
+        "Status: ready-for-human\n", encoding="utf-8"
+    )
+    beta_dir = tmp_path / ".scratch" / "beta-feature" / "issues"
+    beta_dir.mkdir(parents=True)
+    (beta_dir / "01-different-task.md").write_text(
+        "Status: needs-triage\n", encoding="utf-8"
     )
 
     assert find_issue_status_mismatches(tmp_path) == []

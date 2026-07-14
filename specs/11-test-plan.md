@@ -11,7 +11,7 @@ Four layers, in ascending scope: unit (single node/function), integration (multi
 | Environment | Purpose |
 |---|---|
 | Local/CI | Unit + integration tests against dockerized Postgres/Qdrant/Redis test instances; no real GPU (mocked model responses where a test doesn't need real inference) — describes a Docker-provisioned human/CI machine, not necessarily what an implementing agent itself can reach; see the row below |
-| Agent execution sandbox | What an agent implementing a Phase 2+ task can itself run and evidence directly, per `docs/agents/dev-environment.md`'s probed ground truth — currently no Docker, no GPU, no C/C++ toolchain. Verification here uses fake/stub-backed unit + integration tests and contract/schema checks (DEC-135 Tiers 1-2); anything needing a live Postgres/Qdrant/Redis/vLLM/etc. is `[manual-verify]`, owned by DevOps/dev rig (DEC-135 Tier 3) |
+| Agent execution sandbox | What an agent implementing a Phase 2+ task can itself run and evidence directly, per `docs/agents/dev-environment.md`'s probed ground truth — currently no Docker, no GPU, no C/C++ toolchain. Verification here uses fake/stub-backed unit + integration tests and contract/schema checks (DEC-135 Tiers 1-2); anything needing a live Postgres/Redis/vLLM/etc. is `[manual-verify]`, owned by DevOps/dev rig (DEC-135 Tier 3). **Qdrant is a partial exception (DEC-140, corrected by DEC-141)**: `qdrant-client`'s embedded local mode (`QdrantClient(":memory:")`/`path=...`) runs the real client library in-process — collection vector config (dense+sparse) and filter/query-semantics correctness are genuinely agent-executable this way, confirmed empirically. **Payload-index existence is not** — local mode silently no-ops `create_payload_index` (empty `payload_schema` on introspection, an explicit maintainer warning), so that specific criterion stays Tier 3 (or a Tier-2 static call-inspection proxy); only vector-config and filter-semantics moved, not the whole Qdrant surface |
 | Dev rig (RunPod) | Full-stack integration + E2E tests requiring real model inference (safety-rail accuracy, NLI scoring, generation quality) |
 | Air-gap simulation | REQ-012 verification: network namespace blocked, full eval suite run |
 | Customer-representative rig | Hardware-validation tests per `09-deployment-ops.md`'s measured-VRAM methodology |
@@ -171,4 +171,4 @@ Consolidated, single-location list of documented MVP limitations that are **not 
 
 ## Decision References
 
-DEC-006, DEC-039, DEC-042, DEC-046, DEC-061, DEC-063, DEC-065, DEC-070, DEC-071, DEC-088, DEC-090, DEC-091, DEC-092, DEC-096, DEC-105, DEC-106, DEC-109, DEC-110, DEC-113, DEC-114, DEC-116, DEC-128, DEC-129, DEC-135, DEC-139
+DEC-006, DEC-039, DEC-042, DEC-046, DEC-061, DEC-063, DEC-065, DEC-070, DEC-071, DEC-088, DEC-090, DEC-091, DEC-092, DEC-096, DEC-105, DEC-106, DEC-109, DEC-110, DEC-113, DEC-114, DEC-116, DEC-128, DEC-129, DEC-135, DEC-139, DEC-140, DEC-141

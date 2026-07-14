@@ -16,13 +16,18 @@ See [`specs/01-product-brief.md`](specs/01-product-brief.md) for the full proble
 
 ## Project status
 
-This repository is currently in **Phase 1 (bootstrap)** of the build plan. The scaffold is in place plus the first three Phase 1 issues, which close Phase 1's exit gate:
+**Phase 1 (bootstrap)** is closed. The scaffold is in place plus the three Phase 1 issues, which close Phase 1's exit gate:
 
-- ✅ Issue 01 — project scaffold (17 module directories per the architecture's module map) + core dependency pinning
-- ✅ Issue 02 — architecture import-graph check (enforces the module call-direction rules in CI) + CI baseline
-- ✅ Issue 03 — first failing smoke test: a minimal `GET /ready` endpoint (Pydantic-typed, no live backend calls) with a test that deliberately still fails, since `ready: true` isn't honest until real services exist
+- ✅ phase-1-bootstrap Issue 01 — project scaffold (17 module directories per the architecture's module map) + core dependency pinning
+- ✅ phase-1-bootstrap Issue 02 — architecture import-graph check (enforces the module call-direction rules in CI) + CI baseline
+- ✅ phase-1-bootstrap Issue 03 — first failing smoke test: a minimal `GET /ready` endpoint (Pydantic-typed, no live backend calls) with a test that deliberately still fails, since `ready: true` isn't honest until real services exist
 
-Phase 2 hasn't started. If this list looks out of date, [`.scratch/phase-1-bootstrap/issues/`](.scratch/phase-1-bootstrap/issues/) (or the next phase's issue directory) is the authoritative status, not this README.
+**Phase 2 (core domain + data foundation)** has started. Two issues published, neither implemented yet:
+
+- ⏳ data-foundation Issue 01 — Postgres schema migration (9 tables per `specs/07-database.md`, hand-authored Alembic migration)
+- ⏳ data-foundation Issue 02 — Qdrant collection + 5 mandatory payload indexes
+
+If this list looks out of date, [`.scratch/phase-1-bootstrap/issues/`](.scratch/phase-1-bootstrap/issues/) and [`.scratch/data-foundation/issues/`](.scratch/data-foundation/issues/) (or the next phase's issue directory) are the authoritative status, not this README.
 
 The canonical source of truth for what's being built and why is [`specs/`](specs/), not this README — start at [`specs/00-index.md`](specs/00-index.md).
 

@@ -8,6 +8,8 @@ If you notice yourself retyping the same multi-step command, or the same one-lin
 
 Don't promote something that's only ever going to run once (a scratch/throwaway check for a specific bug) — that's what an inline command is for. The bar is *reuse*, not *complexity*.
 
+**The within-session signal above is blind to cross-session recurrence — check for that too, not just this session's own retyping.** A fresh session has no memory of a prior session's inline commands, so the same hand-rolled check can recur across multiple sessions without ever tripping the "twice in one session" trigger, since each individual session only used it once. Concrete case this repo already hit: a `pip install --dry-run` dependency-installability check was hand-rolled in `specs/13-decision-log.md` DEC-134 (2026-07-11) and again, independently, while gating Phase 2's first issues (2026-07-14) — two different sessions, same underlying need, never promoted, because neither session repeated it *within itself*. Before writing an inline verification command for a "has this kind of check come up before" situation (dependency-version/installability checks, environment-capability probes, spec cross-reference sweeps), grep `specs/13-decision-log.md` and recent commit messages for the same pattern first — if it's there, that's a second occurrence even though this session only used it once.
+
 ## How to write a good script for this repo
 
 - **Stdlib-only Python, or portable bash calling only tools already required elsewhere in this repo** (`ruff`, `mypy`, `pytest`, `git`, `gh`) — no new dependency to install before the script itself becomes usable. `tools/call_peer_review_model.py`'s own docstring states this reasoning; it's the standing convention, not a one-off choice.

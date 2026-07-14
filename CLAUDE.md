@@ -86,7 +86,7 @@ Tag the commit `handoff/<slug>` afterward (matching the doc's topic, not necessa
 
 `.scratch/session-feedback.md` logs *how the work went* — friction points, ambiguous instructions, late-caught mistakes, things worth repeating — not *what* changed (that's commit messages / `specs/13-decision-log.md`; don't duplicate here).
 
-Append an entry before committing substantial work (skip trivial Q&A). Be specific — a vague "went well" wastes a future reader's attention. Only promote a repeated observation into a standing rule once it's actually recurred, not on first mention.
+Append an entry at the first of these that happens (skip trivial Q&A): immediately before a `git commit` covering substantial work, or — for a session running long without committing — at a natural checkpoint (a topic/chapter shift, or the user asking what's next) once real friction has already accumulated. Don't rely on the commit trigger alone: a session that goes a long stretch without committing never fires it, which is exactly what happened during Phase 2 kickoff (2026-07-14) — three real friction points accumulated and went unlogged until the user asked directly whether this file had been updated. Be specific — a vague "went well" wastes a future reader's attention. Only promote a repeated observation into a standing rule once it's actually recurred, not on first mention.
 
 Skim existing entries at the start of a session doing substantial work in this repo, if not read recently (check/update the file's own "Last read" line). The goal is closing the loop between noticing friction and no longer hitting it — not accumulating a log nobody rereads.
 
@@ -120,7 +120,8 @@ Before calling substantial work done (not trivial Q&A), run through what applies
 2. **Performance, once it exists** — Phase 1 has no perf-sensitive code yet (`specs/11-test-plan.md`'s Performance Tests are all Phase 2+). Once a `TEST-03x`/`TEST-041` is implemented, compare against the last recorded baseline, not just the threshold — a rising latency can pass a fixed threshold every time and still be a regression.
 3. **Agent review, for a nontrivial diff** — `code-review`/`review` plus `peer-review`; see `peer-review/SKILL.md`'s own trigger guidance.
 4. **Global scans, if their cadence is hit** — `commit-sweep` and `test-audit` (see their own sections above); don't run either just because this checklist is being followed.
-5. **Session feedback** — per "Session feedback" above.
-6. **Handoff, if warranted** — per "Handoff documents" above.
+5. **Tools/ promotion check** — did a command get retyped more than once this session? Also check across sessions, not just this one: grep `specs/13-decision-log.md` and recent commit messages for the same pattern before assuming this is the first occurrence — see `tools/README.md`'s promotion criteria (a within-session-only check misses a pattern that recurred once per session across several sessions and never got promoted).
+6. **Session feedback** — per "Session feedback" above.
+7. **Handoff, if warranted** — per "Handoff documents" above.
 
 Not every step fires every cycle — a small, contained fix might only need step 1.

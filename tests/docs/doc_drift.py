@@ -1,11 +1,17 @@
 """Documentation-drift checks.
 
-Two failure classes this project has already hit by hand once each:
+Three failure classes this project has already hit by hand once each:
 (1) a `DEC-###` cited somewhere that doesn't resolve to a real row in
-    `specs/13-decision-log.md` (typo, or a row renumbered/never landed), and
+    `specs/13-decision-log.md` (typo, or a row renumbered/never landed),
 (2) `README.md`'s issue-status markers (✅/⏳) going stale relative to the
     `.scratch/*/issues/*.md` file's own `Status:` line (exactly what happened
-    to Issue 03 before it was hand-fixed).
+    to Issue 03 before it was hand-fixed), and
+(3) two different `.scratch/<feature-slug>/issues/` directories both starting
+    their own numbering at `01` (the documented, intended convention per
+    `docs/agents/issue-tracker.md`) silently colliding in a status lookup that
+    doesn't scope by feature — caught when `data-foundation`'s Issue 01
+    collided with `phase-1-bootstrap`'s Issue 01 in this file's own
+    now-fixed logic.
 
 Scope: `specs/`, `docs/`, `.scratch/`, `CLAUDE.md`, `README.md`. Deliberately
 excludes `.claude/skills/` — that directory holds generic, reusable skill
@@ -20,7 +26,7 @@ DEC_ID_RE = re.compile(r"\bDEC-\d+\b")
 DEC_ROW_RE = re.compile(r"^\|\s*(DEC-\d+)\s*\|")
 ISSUE_STATUS_RE = re.compile(r"^Status:\s*(\S+)")
 ISSUE_FILENAME_RE = re.compile(r"^(\d+)-")
-README_ISSUE_LINE_RE = re.compile(r"^-\s*(✅|⏳)?\s*Issue (\d+)\b")
+README_ISSUE_LINE_RE = re.compile(r"^-\s*(✅|⏳)?\s*([a-z0-9][a-z0-9-]*)\s+Issue (\d+)\b")
 
 DONE_STATUSES = {"ready-for-human"}
 DOC_DIRS = ("specs", "docs", ".scratch")
@@ -94,41 +100,46 @@ def find_dangling_dec_references(repo_root: Path) -> list[str]:
 
 def find_issue_status_mismatches(repo_root: Path) -> list[str]:
     """Return one message per README.md issue marker that disagrees with the
-    referenced .scratch/*/issues/*.md file's own Status: line."""
+    referenced .scratch/<feature-slug>/issues/*.md file's own Status: line.
+
+    Keyed by (feature_slug, number), not bare number — issue-tracker.md's own
+    convention has every feature directory restart numbering at 01, so two
+    different features' "Issue 01" are different issues, not the same one."""
     scratch = repo_root / ".scratch"
     readme = repo_root / "README.md"
     if not scratch.is_dir() or not readme.is_file():
         return []
 
-    statuses: dict[str, str] = {}
+    statuses: dict[tuple[str, str], str] = {}
     for issue_file in scratch.rglob("issues/*.md"):
         match = ISSUE_FILENAME_RE.match(issue_file.name)
         if not match:
             continue
         number = str(int(match.group(1)))
+        feature_slug = issue_file.parent.parent.name
         first_line = issue_file.read_text(encoding="utf-8").splitlines()[0]
         status_match = ISSUE_STATUS_RE.match(first_line)
         if status_match:
-            statuses[number] = status_match.group(1)
+            statuses[(feature_slug, number)] = status_match.group(1)
 
     violations = []
     for lineno, line in enumerate(readme.read_text(encoding="utf-8").splitlines(), start=1):
         match = README_ISSUE_LINE_RE.match(line)
         if not match:
             continue
-        marker, number = match.group(1), str(int(match.group(2)))
-        status = statuses.get(number)
+        marker, feature_slug, number = match.group(1), match.group(2), str(int(match.group(3)))
+        status = statuses.get((feature_slug, number))
         if status is None:
             continue
         is_done = status in DONE_STATUSES
         if is_done and marker != "✅":
             violations.append(
-                f"README.md:{lineno}: Issue {number} shows {marker or 'no marker'} but its "
+                f"README.md:{lineno}: {feature_slug} Issue {number} shows {marker or 'no marker'} but its "
                 f"issue file's Status is `{status}` (done) — README is stale"
             )
         elif not is_done and marker == "✅":
             violations.append(
-                f"README.md:{lineno}: Issue {number} shows ✅ but its issue file's Status "
+                f"README.md:{lineno}: {feature_slug} Issue {number} shows ✅ but its issue file's Status "
                 f"is `{status}` (not done) — README overclaims"
             )
     return violations
