@@ -2,7 +2,18 @@
 
 > Running log of *how the work went* — friction points, ambiguous instructions, mistakes caught late, things that worked well enough to repeat. Not a changelog: commit messages and `specs/13-decision-log.md` already cover *what* changed; this file is for the meta-layer neither of those capture. See `CLAUDE.md`'s "Session feedback" section for when to append and when to read.
 >
-> **Last read: 2026-07-15** (read the two prior entries in full before this session's own entry below).
+> **Last read: 2026-07-15** (read the three prior entries in full before this session's own entry below).
+
+## 2026-07-15 (continued) — Resolving the TEI/bge-m3 sparse gap end-to-end (DEC-142)
+
+**Context**: user asked for a recommendation on the TEI/bge-m3 sparse-embedding gap flagged at the end of the Issue 01 implementation, picked one of three options, then asked for both docs and code to be updated. Full loop: `update-specs` (DEC-142, corrected DEC-086 and REQ-003), rewrote `ingest/embedding.py` into three composed clients, propagated across 9 spec files and 3 `.scratch/` files, verified, committed.
+
+**What worked well enough to repeat**:
+- Verifying TEI's exact `/embed_sparse` request/response schema against its own Rust source (`router/src/http/types.rs`) before writing the client, rather than inferring the shape from the `/embed` pattern already implemented. The response shape (`Vec<Vec<SparseValue>>`, one list of `{index, value}` per input text) wasn't guessable from the dense endpoint's shape alone, and getting it wrong would have silently produced garbage sparse vectors that only a live TEI server would have caught.
+- Re-reading a GitHub issue's actual comment thread instead of trusting a prior finding that had already cited the same issue. The 2026-07-13 cross-model review cited issue #141 too and concluded only ColBERT was affected — checking the same source again, more carefully, found sparse has the identical root cause. Worth naming plainly: cross-model review narrows the same-family blind spot, it doesn't replace actually reading the source it cites.
+
+**Friction / mistakes worth naming**:
+- When laying out the three options to the user, I didn't have (and didn't ask for) a verified VRAM figure for the new SPLADE model, so DEC-142 correctly leaves the hardware-budget impact as an open, flagged gap rather than a number. That's the right call, but worth flagging forward: `04-architecture.md` §4.2.2's allocation table now has an unsized row sitting inside an already-thin ~1.7 GB warm-cache headroom — this needs a real measurement before any production sizing conversation, not just before this ships.
 
 ## 2026-07-15 — PRD regeneration, risk reviews, Issue 01 implementation (`/implement`, `/code-review`)
 
