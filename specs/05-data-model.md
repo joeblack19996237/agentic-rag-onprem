@@ -112,7 +112,7 @@ Note: `allow_principals`/`deny_principals`/`security_label`/`retention_state` ar
 | `chunk_size` | Integer | Yes | Token count at chunking time (1024-token target) | DEC-065 |
 | `chunk_overlap` | Integer | Yes | Overlap token count (128-token target) | DEC-065 |
 | `embedding_dense` | Vector | Yes | `bge-m3` dense embedding | DEC-086 |
-| `embedding_sparse` | Sparse vector | Yes | `bge-m3` sparse (lexical) embedding — required for REQ-003's hybrid dense+sparse claim to hold | DEC-086 |
+| `embedding_sparse` | Sparse vector | Yes | Sparse (lexical) embedding from a dedicated SPLADE model, **not `bge-m3`** (corrected DEC-142, 2026-07-15 — TEI cannot serve `bge-m3`'s own sparse output) — required for REQ-003's hybrid dense+sparse claim to hold | DEC-142 (source correction; DEC-086 still governs the dense side) |
 | `embedding_model_version` | String | Yes | Identifies which embedding model produced the vectors above; part of the `<corpus_id>_<embedding_model_version>` collection naming convention | DEC-059 |
 | `allow_principals` | Array\<String\> | Yes | Denormalized from `document_versions` at ingest; refreshed on `acl_changed` | §7B.3 |
 | `deny_principals` | Array\<String\> | Yes | Denormalized from `document_versions` | §7B.3 |
@@ -295,10 +295,10 @@ Every entity mutation that has compliance significance must be traceable:
 - `04-architecture.md` §5.1.1 (`QueryGraphState` typed schema — the in-flight, non-persisted version of several fields that land in `audit_events` at turn end)
 - `04-architecture.md` §6, §7B.3-§7B.10 (original entity sketch and two-layer ACL detail this file expands)
 - `02-requirements.md` REQ-007, REQ-034, REQ-035, REQ-050
-- `13-decision-log.md` DEC-042, DEC-045, DEC-046, DEC-059, DEC-060, DEC-064, DEC-065, DEC-070, DEC-071, DEC-076, DEC-086, DEC-087, DEC-088, DEC-089, DEC-091, DEC-096, DEC-105, DEC-106, DEC-109, DEC-113, DEC-114, DEC-116
+- `13-decision-log.md` DEC-042, DEC-045, DEC-046, DEC-059, DEC-060, DEC-064, DEC-065, DEC-070, DEC-071, DEC-076, DEC-086, DEC-087, DEC-088, DEC-089, DEC-091, DEC-096, DEC-105, DEC-106, DEC-109, DEC-113, DEC-114, DEC-116, DEC-142
 - `07-database.md` (this phase — physical schema derived from this file)
 - `08-observability-logs.md` (this phase — `otel_spans` structure)
 
 ## Decision References
 
-DEC-042, DEC-044, DEC-045, DEC-046, DEC-059, DEC-060, DEC-064, DEC-065, DEC-069, DEC-070, DEC-071, DEC-076, DEC-077, DEC-084, DEC-086, DEC-087, DEC-088, DEC-089, DEC-091, DEC-092, DEC-096, DEC-103, DEC-105, DEC-106, DEC-109, DEC-113, DEC-114, DEC-116
+DEC-042, DEC-044, DEC-045, DEC-046, DEC-059, DEC-060, DEC-064, DEC-065, DEC-069, DEC-070, DEC-071, DEC-076, DEC-077, DEC-084, DEC-086, DEC-087, DEC-088, DEC-089, DEC-091, DEC-092, DEC-096, DEC-103, DEC-105, DEC-106, DEC-109, DEC-113, DEC-114, DEC-116, DEC-142

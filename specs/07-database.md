@@ -89,8 +89,8 @@ No pgvector, no Weaviate, no Celery/Kafka — see DEC-034 for the full rejected-
 
 ### Collection Naming and Design
 
-- **One collection per `(corpus_id, embedding_model_version)`** — the double-collection naming convention (DEC-059), e.g. `default_bge-m3-v2`. This is in place from MVP day one, even though the blue/green re-embedding *automation* (REQ-034) is V2 — the naming convention alone is what makes that automation possible without a breaking migration later
-- **Vectors per point**: dense (`bge-m3` dense output) + sparse (`bge-m3` lexical output) — both required for REQ-003's hybrid dense+sparse claim (DEC-086); a collection with only a dense vector is not a valid MVP collection
+- **One collection per `(corpus_id, embedding_model_version)`** — the double-collection naming convention (DEC-059), e.g. `default_bge-m3-v2`. This is in place from MVP day one, even though the blue/green re-embedding *automation* (REQ-034) is V2 — the naming convention alone is what makes that automation possible without a breaking migration later. **Open question, not resolved by DEC-142**: `embedding_model_version` now tracks two independently-versionable models (dense `bge-m3` + a separate sparse SPLADE model) but the naming convention still carries only one version string — fine for MVP (no automated re-embedding yet, REQ-034 is V2), but whoever builds the V2 blue/green automation needs to decide whether a sparse-model-only version bump also needs a new collection
+- **Vectors per point**: dense (`bge-m3` dense output, DEC-086) + sparse (a dedicated SPLADE model's output, **DEC-142, 2026-07-15 — corrects the prior "bge-m3 lexical output" claim; TEI cannot serve bge-m3's own sparse output**) — both required for REQ-003's hybrid dense+sparse claim; a collection with only a dense vector is not a valid MVP collection
 - **Payload per point** (mirrors `chunks` entity fields from `05-data-model.md`): `document_id`, `version_id`, `repository_id`, `chunk_id`, `sequence`, `text`, `embedding_model_version`, `allow_principals[]`, `deny_principals[]`, `security_label`, `retention_state`, `frozen_at`
 
 ### Payload Indexes
@@ -167,8 +167,8 @@ Redis has no schema in the relational sense — this section documents key shape
 - `05-data-model.md` (entity source for every table/collection/key in this file)
 - `04-architecture.md` §4.1 (store choices), §7B.3-§7B.4 (two-layer ACL mechanics this schema implements), §9.1 (docker-compose volumes)
 - `09-deployment-ops.md` (this phase — backup schedule, restore drills, capacity-growth runbook execution)
-- `13-decision-log.md` DEC-034, DEC-038, DEC-046, DEC-059, DEC-065, DEC-070, DEC-076, DEC-086, DEC-090, DEC-096, DEC-097, DEC-102, DEC-109, DEC-116
+- `13-decision-log.md` DEC-034, DEC-038, DEC-046, DEC-059, DEC-065, DEC-070, DEC-076, DEC-086, DEC-090, DEC-096, DEC-097, DEC-102, DEC-109, DEC-116, DEC-142
 
 ## Decision References
 
-DEC-034, DEC-038, DEC-046, DEC-059, DEC-065, DEC-070, DEC-076, DEC-086, DEC-090, DEC-096, DEC-097, DEC-102, DEC-109, DEC-116
+DEC-034, DEC-038, DEC-046, DEC-059, DEC-065, DEC-070, DEC-076, DEC-086, DEC-090, DEC-096, DEC-097, DEC-102, DEC-109, DEC-116, DEC-142
