@@ -1,0 +1,272 @@
+{
+  "components": {
+    "schemas": {
+      "ErrorDetail": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "details": {
+            "additionalProperties": true,
+            "title": "Details",
+            "type": "object"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "request_id"
+        ],
+        "title": "ErrorDetail",
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorDetail"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "title": "ErrorResponse",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "ReadyResponse": {
+        "properties": {
+          "ready": {
+            "title": "Ready",
+            "type": "boolean"
+          },
+          "services": {
+            "$ref": "#/components/schemas/ServiceHealth"
+          }
+        },
+        "required": [
+          "ready",
+          "services"
+        ],
+        "title": "ReadyResponse",
+        "type": "object"
+      },
+      "ServiceHealth": {
+        "description": "DEC-117 full-dependency health check, per specs/06-api-contracts.md's\nAPI-O-01 contract. No real health checks exist yet (Phase 1) \u2014 every\nfield defaults to False rather than being silently omitted, so /ready's\nshape is already correct even though its values aren't wired to\nanything real yet.",
+        "properties": {
+          "nli": {
+            "default": false,
+            "title": "Nli",
+            "type": "boolean"
+          },
+          "policy": {
+            "default": false,
+            "title": "Policy",
+            "type": "boolean"
+          },
+          "postgres": {
+            "default": false,
+            "title": "Postgres",
+            "type": "boolean"
+          },
+          "qdrant": {
+            "default": false,
+            "title": "Qdrant",
+            "type": "boolean"
+          },
+          "redis": {
+            "default": false,
+            "title": "Redis",
+            "type": "boolean"
+          },
+          "safety_input": {
+            "default": false,
+            "title": "Safety Input",
+            "type": "boolean"
+          },
+          "safety_output": {
+            "default": false,
+            "title": "Safety Output",
+            "type": "boolean"
+          },
+          "tei_embed": {
+            "default": false,
+            "title": "Tei Embed",
+            "type": "boolean"
+          },
+          "tei_rerank": {
+            "default": false,
+            "title": "Tei Rerank",
+            "type": "boolean"
+          },
+          "vllm": {
+            "default": false,
+            "title": "Vllm",
+            "type": "boolean"
+          }
+        },
+        "title": "ServiceHealth",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "FastAPI",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/ready": {
+      "get": {
+        "description": "Report aggregate readiness. Always returns 200 (per API-O-01) \u2014 a\nhealth-check endpoint returning 5xx during startup would be\nindistinguishable from \"the endpoint itself is broken\".",
+        "operationId": "get_ready_ready_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Ready"
+      }
+    },
+    "/v1/query": {
+      "post": {
+        "description": "Registered and auth-enforced; returns 501 until Phase 3 wires the\nreal query graph (specs/10-build-plan.md TASK-033's own text: \"returns\n501 until Phase 3 lands\" -- deliberate and temporary, not an unresolved\nplaceholder). `06-api-contracts.md`'s Error Schema table doesn't list\n501 among its documented codes -- flagged as an update-specs candidate,\nnot something to hand-fix here -- so this still returns the same\nstructured error shape every other non-2xx response uses, rather than a\nbare, bodyless 501.",
+        "operationId": "post_query_v1_query_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Admin-Api-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid credentials"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not implemented until Phase 3"
+          }
+        },
+        "summary": "Post Query"
+      }
+    }
+  }
+}

@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: ready-for-human
 
 # Issue 01: Auth Foundation + OpenAPI Contract Scaffolding + Query Stub
 
@@ -29,22 +29,30 @@ JWKS comes from a static, pre-imported bundle (air-gap install, DEC-062) — no 
 
 ## Acceptance criteria
 
-- [ ] A request to `POST /v1/query` with no bearer token and no admin API key returns `401 unauthenticated` with the standard error shape (`06-api-contracts.md`'s Error Schema)
+- [x] A request to `POST /v1/query` with no bearer token and no admin API key returns `401 unauthenticated` with the standard error shape (`06-api-contracts.md`'s Error Schema)
       Verification: `pytest tests/api/test_auth.py -k missing_credentials -v`
-- [ ] A JWT signed with HS256, or an unsigned token with `alg: none`, is rejected with `401` even though it is otherwise well-formed (DEC-061) — including a hand-forged HS256 token that uses the server's own RSA public key as the HMAC secret (the classic alg-confusion downgrade attack), confirmed rejected during risk review because HS256 is simply never in the accepted `algorithms` list
+      **Done (2026-07-15)**: `test_missing_credentials_returns_401` passing.
+- [x] A JWT signed with HS256, or an unsigned token with `alg: none`, is rejected with `401` even though it is otherwise well-formed (DEC-061) — including a hand-forged HS256 token that uses the server's own RSA public key as the HMAC secret (the classic alg-confusion downgrade attack), confirmed rejected during risk review because HS256 is simply never in the accepted `algorithms` list
       Verification: `pytest tests/api/test_auth.py -k rejects_hs256_and_none -v`
-- [ ] A JWT is accepted when correctly signed and `kid`-matched for **each** of RS256/RSA, ES256/EC, and EdDSA/OKP — not just one of the three; a single representative case does not satisfy this AC
+      **Done (2026-07-15)**: `test_rejects_hs256_and_none` passing, re-confirmed against the actually-pinned `PyJWT[crypto]==2.13.0` (not just the 2.12.1 used during risk review). **`/code-review` Spec-axis finding, fixed same day**: the first version's forged tokens carried no `kid`, so they were rejected for an unrelated reason (missing `kid`, checked before the algorithm whitelist) — the test still passed even after deliberately re-adding HS256 to `ALLOWED_ALGORITHMS` in a mutation check, proving it verified nothing about DEC-061's whitelist specifically. Fixed by giving both forged tokens a resolvable `kid`; mutation-testing the fix then surfaced a genuine second, independent control (the JWKS holds only asymmetric keys, so a resolved key is never HMAC-usable even if HS256 were mistakenly whitelisted) — documented in the test's own docstring rather than overclaiming the whitelist alone is what's proven.
+- [x] A JWT is accepted when correctly signed and `kid`-matched for **each** of RS256/RSA, ES256/EC, and EdDSA/OKP — not just one of the three; a single representative case does not satisfy this AC
       Verification: `pytest tests/api/test_auth.py -k accepts_whitelisted_alg -v` (must be parametrized over all 3 algorithm/key-type pairs)
-- [ ] A token with a missing `kid`, a `kid` absent from the JWKS bundle, or a `kid` that resolves to a key of the wrong type for the token's claimed algorithm is rejected with `401` — not an uncaught `500` (PyJWT raises a bare `TypeError`, not a `PyJWTError` subclass, for the type-mismatch case; the auth code must catch it)
+      **Done (2026-07-15)**: `test_accepts_whitelisted_alg` parametrized over all 3 pairs, all passing.
+- [x] A token with a missing `kid`, a `kid` absent from the JWKS bundle, or a `kid` that resolves to a key of the wrong type for the token's claimed algorithm is rejected with `401` — not an uncaught `500` (PyJWT raises a bare `TypeError`, not a `PyJWTError` subclass, for the type-mismatch case; the auth code must catch it)
       Verification: `pytest tests/api/test_auth.py -k kid_edge_cases -v`
-- [ ] A valid admin API key is accepted as an alternative to a JWT on an admin-scoped route (comparison implementation — `hmac.compare_digest()`, not `==` — is a `/code-review` Standards-pass check, not a separate AC; see "What to build")
+      **Done (2026-07-15)**: `test_kid_edge_cases` parametrized over all 3 cases, all passing; `api/auth.py::verify_jwt` explicitly catches `TypeError`/`ValueError` alongside `PyJWTError`.
+- [x] A valid admin API key is accepted as an alternative to a JWT on an admin-scoped route (comparison implementation — `hmac.compare_digest()`, not `==` — is a `/code-review` Standards-pass check, not a separate AC; see "What to build")
       Verification: `pytest tests/api/test_auth.py -k admin_api_key -v`
-- [ ] `GET /ready` returns `200` (not `401`) for a request with no `Authorization` header and no admin-API-key header, once auth middleware is in place — the sole unauthenticated exception, per `06-api-contracts.md`. **Fixed during risk review**: the pre-existing `test_ready_returns_dec117_schema_shape` (written in Phase 1, before auth existed) only checks response *shape* — it can't distinguish "explicitly exempted from auth" from "auth doesn't exist yet," so it does not satisfy this AC on its own; write a new, dedicated test.
+      **Done (2026-07-15)**: `test_admin_api_key_accepted` + `test_admin_api_key_rejected_when_wrong` passing; `api/auth.py::verify_admin_api_key` uses `hmac.compare_digest`.
+- [x] `GET /ready` returns `200` (not `401`) for a request with no `Authorization` header and no admin-API-key header, once auth middleware is in place — the sole unauthenticated exception, per `06-api-contracts.md`. **Fixed during risk review**: the pre-existing `test_ready_returns_dec117_schema_shape` (written in Phase 1, before auth existed) only checks response *shape* — it can't distinguish "explicitly exempted from auth" from "auth doesn't exist yet," so it does not satisfy this AC on its own; write a new, dedicated test.
       Verification: `pytest tests/api/test_auth.py -k ready_exempt_from_auth -v` (new test in the auth suite, not `test_ready.py` — this is testing auth-middleware behavior, not `/ready`'s own response shape)
-- [ ] OpenAPI 3.x schema, generated from the running FastAPI app, matches a committed schema snapshot; an intentionally introduced undocumented route/field change fails the test
+      **Done (2026-07-15)**: `test_ready_exempt_from_auth` passing; `/ready` has no `Depends(require_auth)`.
+- [x] OpenAPI 3.x schema, generated from the running FastAPI app, matches a committed schema snapshot; an intentionally introduced undocumented route/field change fails the test
       Verification: `pytest tests/api/test_openapi_contract.py -v`
-- [ ] `POST /v1/query` is registered, requires auth, and returns `501` with the standard error-response body (`{"error": {"code": "not_implemented", ...}}`) for an authenticated request — not `404`, and not a bare/unstructured `501`
+      **Done (2026-07-15)**: both tests passing; snapshot hand-verified against `06-api-contracts.md`'s Error Schema and API-Q-01 row. Found during authoring: FastAPI's auto-generated schema defaulted `/v1/query` to documenting a misleading `200 Successful Response` (the route never returns 200) — fixed by declaring `responses={401: ..., 501: ...}` explicitly on the route before snapshotting, rather than locking in the wrong default. **`/code-review` Spec-axis finding, fixed same day**: the drift-detection test originally deep-copied the *snapshot file* and compared the mutated copy against the original — true of any two different dicts, so it never actually called `app.openapi()` and proved nothing about whether this test suite's real comparison can catch real drift. Rewritten to register a real throwaway route on the live app, regenerate the schema for real, and confirm that diverges from the snapshot, with cleanup so no state leaks into other test modules importing the same `app` singleton.
+- [x] `POST /v1/query` is registered, requires auth, and returns `501` with the standard error-response body (`{"error": {"code": "not_implemented", ...}}`) for an authenticated request — not `404`, and not a bare/unstructured `501`
       Verification: `pytest tests/api/test_query_stub.py -v`
+      **Done (2026-07-15)**: all 3 tests passing.
 
 ## Blocked by
 
