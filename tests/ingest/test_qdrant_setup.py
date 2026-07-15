@@ -21,6 +21,7 @@ from ingest.qdrant_setup import (
     SPARSE_VECTOR_NAME,
     build_collection_name,
     create_collection,
+    resolve_index_target,
 )
 
 COLLECTION = build_collection_name("default", "bge-m3-v2")
@@ -112,6 +113,16 @@ def test_create_payload_index_called_for_all_five_mandatory_fields(mocker):
     assert spy.call_count == 5
     called_field_names = {call.kwargs["field_name"] for call in spy.call_args_list}
     assert called_field_names == set(MANDATORY_PAYLOAD_INDEXES)
+
+
+def test_resolve_index_target_builds_collection_name_from_active_model_version(mocker):
+    session = mocker.MagicMock()
+    session.execute.return_value.scalar_one_or_none.return_value = "bge-m3-v2"
+
+    target = resolve_index_target(session, "default")
+
+    assert target.embedding_model_version == "bge-m3-v2"
+    assert target.collection_name == "default_bge-m3-v2"
 
 
 def test_mandatory_index_field_names_match_documented_set_exactly():

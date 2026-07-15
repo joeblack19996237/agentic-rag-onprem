@@ -19,6 +19,10 @@ from qdrant_client.models import (
     SparseVectorParams,
     VectorParams,
 )
+from sqlalchemy.orm import Session
+
+from config.active_model_version import get_active_model_version
+from ingest.identity import IndexTarget
 
 # bge-m3's dense output is a fixed 1024-dimension vector (verified live,
 # huggingface.co/BAAI/bge-m3, 2026-07-14 -- not training-data recall).
@@ -42,6 +46,18 @@ def build_collection_name(corpus_id: str, embedding_model_version: str) -> str:
     mutating chunks in place, which is what makes blue/green re-embedding
     (REQ-034) possible later without a breaking migration."""
     return f"{corpus_id}_{embedding_model_version}"
+
+
+def resolve_index_target(session: Session, corpus_id: str) -> IndexTarget:
+    """Reads the active `embedding`-role model version
+    (`config/active_model_version.py`) and builds the target collection
+    name from it -- the concrete wiring that query exists to serve
+    (code-review finding, 2026-07-15: the query had no real caller)."""
+    embedding_model_version = get_active_model_version(session, role="embedding")
+    return IndexTarget(
+        collection_name=build_collection_name(corpus_id, embedding_model_version),
+        embedding_model_version=embedding_model_version,
+    )
 
 
 def create_collection(client: QdrantClient, name: str) -> None:

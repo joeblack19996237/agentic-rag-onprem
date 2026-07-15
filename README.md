@@ -27,7 +27,10 @@ See [`specs/01-product-brief.md`](specs/01-product-brief.md) for the full proble
 - ✅ data-foundation Issue 01 — Postgres schema migration (9 tables per `specs/07-database.md`, hand-authored Alembic migration; offline `--sql` DDL rendering verified, live Postgres run pending)
 - ✅ data-foundation Issue 02 — Qdrant collection + 5 mandatory payload indexes (vector config + Layer 1 filter semantics verified against a real embedded client; live-server index-existence check pending)
 
-If this list looks out of date, [`.scratch/phase-1-bootstrap/issues/`](.scratch/phase-1-bootstrap/issues/) and [`.scratch/data-foundation/issues/`](.scratch/data-foundation/issues/) (or the next phase's issue directory) are the authoritative status, not this README.
+- ✅ document-ingest-pipeline Issue 01 — plain-text/Markdown ingest pipeline (parse→chunk→embed→ACL-enrich→index, job-store checkpointing, a disposable `acl/` stub; real Postgres job-store round-trip pending, no live server in this sandbox)
+- ⏳ document-ingest-pipeline Issue 02 — PDF/Word parsing + embedding-service retry resilience (blocked by Issue 01, not yet implemented)
+
+If this list looks out of date, [`.scratch/phase-1-bootstrap/issues/`](.scratch/phase-1-bootstrap/issues/), [`.scratch/data-foundation/issues/`](.scratch/data-foundation/issues/), and [`.scratch/document-ingest-pipeline/issues/`](.scratch/document-ingest-pipeline/issues/) (or the next phase's issue directory) are the authoritative status, not this README.
 
 The canonical source of truth for what's being built and why is [`specs/`](specs/), not this README — start at [`specs/00-index.md`](specs/00-index.md).
 
