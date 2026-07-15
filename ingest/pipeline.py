@@ -250,7 +250,12 @@ def _embed_with_retry(
     at this issue's scope; a real cross-process requeue (DEC-038's
     `SELECT ... FOR UPDATE SKIP LOCKED` pattern releasing the job for
     another poll cycle) is a design this codebase doesn't have the
-    infrastructure for yet. Revisit this function once a real dispatcher
+    infrastructure for yet. Also worth knowing: this retries the whole
+    `embed()` call, so a sparse-only failure redundantly recomputes an
+    already-succeeded dense result on each retry -- see
+    `HybridTEIEmbeddingClient.embed()`'s own docstring for that trade-off
+    (external peer review, 2026-07-15, low severity, not fixed). Revisit
+    this function once a real dispatcher
     exists (code-review finding, 2026-07-15).
     """
     attempt = 0

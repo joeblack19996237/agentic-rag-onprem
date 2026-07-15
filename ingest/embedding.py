@@ -98,7 +98,22 @@ class TEISparseEmbeddingClient:
 
 class HybridTEIEmbeddingClient:
     """Composes a dense client and a sparse client (two separate TEI
-    deployments) into the full `EmbeddingClient` Protocol."""
+    deployments) into the full `EmbeddingClient` Protocol.
+
+    **Known trade-off, not fixed** (external peer review, 2026-07-15,
+    `.scratch/review-reports/document-ingest-pipeline-issue01-02-peer-review.md`
+    P.1, LOW): `embed()` calls dense then sparse sequentially. Callers that
+    retry the whole `embed()` call on failure (`ingest/pipeline.py::_embed_with_retry`)
+    will redundantly recompute dense on every retry triggered by a
+    sparse-only outage, since this method has no memory of a prior
+    partial success. Bounded by the caller's own retry cap (currently
+    `MAX_EMBEDDING_RETRY_ATTEMPTS=5`) and considered a genuine edge case
+    (both TEI deployments likely share infrastructure) rather than a
+    common-path cost -- a real fix (independent dense/sparse retry) would
+    need this class to own backoff/job-store-visibility concerns that
+    `ingest/pipeline.py` currently owns instead, which is a bigger
+    boundary change than this LOW-severity finding justifies on its own.
+    """
 
     def __init__(self, dense_client: TEIDenseEmbeddingClient, sparse_client: TEISparseEmbeddingClient) -> None:
         self._dense_client = dense_client

@@ -190,3 +190,29 @@ def test_hybrid_client_raises_if_dense_and_sparse_counts_disagree(mocker) -> Non
     hybrid = HybridTEIEmbeddingClient(dense_client=dense_client, sparse_client=sparse_client)
     with pytest.raises(ValueError, match="disagree"):
         hybrid.embed(["a"])
+
+
+def test_hybrid_client_recomputes_dense_on_each_retry_when_only_sparse_fails(mocker) -> None:  # type: ignore[no-untyped-def]
+    """Pins a known, documented trade-off (external peer review, 2026-07-15,
+    LOW severity, not fixed -- see HybridTEIEmbeddingClient.embed()'s own
+    docstring): embed() has no memory of a prior partial success, so a
+    caller retrying the whole call on failure (ingest/pipeline.py::_embed_with_retry)
+    redundantly recomputes an already-succeeded dense result on every
+    retry triggered by a sparse-only outage. This is the behavior a real
+    fix would change -- kept as a checked fact so a future fix has a test
+    to update, not a fact to rediscover."""
+    dense_client = mocker.Mock(spec=TEIDenseEmbeddingClient)
+    dense_client.embed_dense.return_value = [[0.1, 0.2]]
+    sparse_client = mocker.Mock(spec=TEISparseEmbeddingClient)
+    sparse_client.embed_sparse.side_effect = [
+        httpx.ConnectError("sparse TEI unreachable (simulated)"),
+        [SparseEmbedding(indices=[1], values=[0.9])],
+    ]
+
+    hybrid = HybridTEIEmbeddingClient(dense_client=dense_client, sparse_client=sparse_client)
+
+    with pytest.raises(httpx.ConnectError):
+        hybrid.embed(["a"])
+    hybrid.embed(["a"])  # simulates the pipeline's retry loop calling embed() again
+
+    assert dense_client.embed_dense.call_count == 2
