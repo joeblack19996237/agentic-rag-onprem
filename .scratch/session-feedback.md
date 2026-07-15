@@ -2,7 +2,21 @@
 
 > Running log of *how the work went* — friction points, ambiguous instructions, mistakes caught late, things that worked well enough to repeat. Not a changelog: commit messages and `specs/13-decision-log.md` already cover *what* changed; this file is for the meta-layer neither of those capture. See `CLAUDE.md`'s "Session feedback" section for when to append and when to read.
 >
-> **Last read: 2026-07-14** (read the single prior entry in full before this session's own entry below).
+> **Last read: 2026-07-15** (read the two prior entries in full before this session's own entry below).
+
+## 2026-07-15 — PRD regeneration, risk reviews, Issue 01 implementation (`/implement`, `/code-review`)
+
+**Context**: regenerated `document-ingest-pipeline`'s PRD via `/to-prd` after the user asked for a diff-and-compare against the 2026-07-13 draft (surfaced 4 real corrections a fresh synthesis catches that patching wouldn't); ran two rounds of user-supplied risk analysis against the two published issues, incorporating the ones that held up; implemented Issue 01 end-to-end and ran `/code-review` against it.
+
+**What worked well enough to repeat**:
+- Verifying a load-bearing architecture assumption empirically instead of trusting the spec's own prior claim: DEC-035/DEC-086 assume TEI serves bge-m3's dense *and* sparse output in one call. WebFetch plus a browser-driven read of TEI's own GitHub issue #141 (a maintainer-adjacent contributor stating plainly that bge-m3's sparse/ColBERT output isn't retrievable through TEI at all) found this doesn't hold — a real, previously-invisible gap in a decision two prior spec stages both built on top of without checking. Caught only because the actual API contract got verified live, matching this project's own dependency-version-claims discipline extended one step further to *capability* claims, not just *version* claims.
+- Mutation-testing the single highest-stakes test (fail-closed ACL blocking) instead of trusting a first green run: deliberately broke the code path, confirmed the test failed, then restored. The *first* mutation attempt was itself flawed — it only neutered one of two ACL calls, so the test still passed for the wrong reason and would have given false confidence if not double-checked. Worth continuing to mutate the *actually load-bearing* line, not just *a* line near the assertion.
+- Applying the same Protocol-plus-fake pattern (job-store, ACL lookup, tokenizer, embedding client) consistently across a pipeline with three separate untestable-in-this-sandbox dependencies (Postgres, TEI, HuggingFace network) kept the whole thing Tier-1/DEC-135-testable — 13 pipeline-level tests, zero live services, all 8 acceptance criteria closeable.
+
+**Friction / mistakes worth naming**:
+- `git checkout -- <file>` silently no-ops (with only a subtle non-error "pathspec did not match" line, easy to miss) on a file that was never committed — a deliberate code mutation made for a verification proof stayed sitting in the working tree uncaught by my own attempted revert, only surfaced because the harness's own file-change reminder flagged it. Any "mutate, prove, revert" verification technique on a *new, uncommitted* file needs a manual restore (re-`Write` the known-good content) rather than `git checkout`, which only works against a committed baseline.
+- Pyright's inline diagnostics lagged my own edits by roughly one tool-call cycle, consistently, for most of the implementation phase (8-10 occurrences) — each individually easy to recognize as stale and correctly not chased (matching this repo's established "mypy is the adopted checker" precedent), but frequent enough this session to name as a pattern: treat a same-turn Pyright diagnostic on a file just edited as provisional until the next tool result confirms it, not as an immediate signal.
+- Two of the four code-review findings (an unused `config/` query never wired to a real caller; a sync/async wording mismatch between the issue text and the actual synchronous implementation) were things a careful line-by-line read of my own diff against the issue's own "What to build" section could plausibly have caught before spending a review cycle on them. Worth a deliberate self-check pass against the source issue's own text before invoking `/code-review`, not just relying on the review to catch it — the review is a second gate, not a substitute for a first one.
 
 ## 2026-07-13 — CLAUDE.md/spec-tooling improvement pass (P0–P7)
 
