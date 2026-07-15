@@ -133,3 +133,34 @@ def test_distinguishes_same_numbered_issues_across_different_features(tmp_path):
     )
 
     assert find_issue_status_mismatches(tmp_path) == []
+
+
+def test_detects_a_real_mismatch_inside_a_cross_feature_number_collision(tmp_path):
+    """The sibling test above only covers the no-false-positive direction:
+    two colliding-numbered issues that each independently agree. This
+    covers the other direction per docs/testing.md's "cover both
+    directions" convention -- a real mismatch in ONE of two
+    colliding-numbered issues must still be caught and attributed to the
+    right feature, not masked by the other feature's clean agreement or
+    misattributed to it."""
+    (tmp_path / "README.md").write_text(
+        "- ✅ alpha-feature Issue 01 — stale claim, issue is not actually done\n"
+        "- ✅ beta-feature Issue 01 — genuinely done task\n",
+        encoding="utf-8",
+    )
+    alpha_dir = tmp_path / ".scratch" / "alpha-feature" / "issues"
+    alpha_dir.mkdir(parents=True)
+    (alpha_dir / "01-stale-claim.md").write_text(
+        "Status: needs-triage\n", encoding="utf-8"
+    )
+    beta_dir = tmp_path / ".scratch" / "beta-feature" / "issues"
+    beta_dir.mkdir(parents=True)
+    (beta_dir / "01-genuinely-done-task.md").write_text(
+        "Status: ready-for-human\n", encoding="utf-8"
+    )
+
+    violations = find_issue_status_mismatches(tmp_path)
+
+    assert len(violations) == 1
+    assert "alpha-feature Issue 1" in violations[0]
+    assert "beta-feature" not in violations[0]
