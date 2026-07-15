@@ -30,7 +30,14 @@ See [`specs/01-product-brief.md`](specs/01-product-brief.md) for the full proble
 - ✅ document-ingest-pipeline Issue 01 — plain-text/Markdown ingest pipeline (parse→chunk→embed→ACL-enrich→index, job-store checkpointing, a disposable `acl/` stub; real Postgres job-store round-trip pending, no live server in this sandbox)
 - ✅ document-ingest-pipeline Issue 02 — PDF/Word parsing (`pdfminer.six` primary + PyMuPDF rescue, corrected from Unstructured.io mid-implementation — DEC-143) + embedding-service retry resilience (Full Jitter backoff); 100-page reference-hardware timing check pending
 
-If this list looks out of date, [`.scratch/phase-1-bootstrap/issues/`](.scratch/phase-1-bootstrap/issues/), [`.scratch/data-foundation/issues/`](.scratch/data-foundation/issues/), and [`.scratch/document-ingest-pipeline/issues/`](.scratch/document-ingest-pipeline/issues/) (or the next phase's issue directory) are the authoritative status, not this README.
+`api-surface` (TASK-033, HTTP API surface) published, none implemented yet:
+
+- ⏳ api-surface Issue 01 — auth foundation (JWT bearer + admin API key), OpenAPI schema-drift contract test, `POST /v1/query` stub
+- ⏳ api-surface Issue 02 — ingest HTTP routes (`POST /v1/ingest`, `GET /v1/ingest/{document_id}`) wired to the existing pipeline
+- ⏳ api-surface Issue 03 — admin document management (`GET`/`PUT /v1/admin/documents`)
+- ⏳ api-surface Issue 04 — admin audit list + model-version read (`GET /v1/admin/audit`, `GET /v1/admin/config/models`)
+
+If this list looks out of date, [`.scratch/phase-1-bootstrap/issues/`](.scratch/phase-1-bootstrap/issues/), [`.scratch/data-foundation/issues/`](.scratch/data-foundation/issues/), [`.scratch/document-ingest-pipeline/issues/`](.scratch/document-ingest-pipeline/issues/), and [`.scratch/api-surface/issues/`](.scratch/api-surface/issues/) (or the next phase's issue directory) are the authoritative status, not this README.
 
 The canonical source of truth for what's being built and why is [`specs/`](specs/), not this README — start at [`specs/00-index.md`](specs/00-index.md).
 
