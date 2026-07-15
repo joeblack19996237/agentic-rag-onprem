@@ -218,7 +218,7 @@ Returned within 1 second of upload (REQ-001 acceptance criterion) — this respo
 
 Poll sequence for a 100-page PDF: `{"status": "parsing", "progress": 0.1, "errors": []}` → `{"status": "indexing", "progress": 0.7, "errors": []}` → `{"status": "ready", "progress": 1.0, "errors": []}`, total elapsed ≤ 60s on reference hardware.
 
-Failure example: `{"status": "failed", "progress": 0.3, "errors": ["Unstructured.io parse failure at page 42: malformed PDF structure. PyMuPDF rescue also failed. Retry after re-exporting the source document, or contact support with this document_id."]}`
+Failure example: `{"status": "failed", "progress": 0.3, "errors": ["pdfminer.six parse failure at page 42: malformed PDF structure. PyMuPDF rescue also failed. Retry after re-exporting the source document, or contact support with this document_id."]}`
 
 ### Validation Rules
 

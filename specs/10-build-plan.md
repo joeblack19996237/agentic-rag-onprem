@@ -235,7 +235,7 @@ Schema migrations are the DB-migration exempt type.
 
 **Phase**: Phase 2
 **Verification Pattern**: TDD
-**Related Requirements**: REQ-001, REQ-002, DEC-036, DEC-065
+**Related Requirements**: REQ-001, REQ-002, DEC-036, DEC-065, DEC-143
 **Owner Role**: Backend
 **Dependencies**: TASK-006, TASK-007
 **Team-path**: ~4 days | **Solo-path**: ~8 days
@@ -244,7 +244,7 @@ Schema migrations are the DB-migration exempt type.
 - Test: uploading a supported-format document returns a `document_id` within 1s and an initial `pending` status; uploading an unsupported format returns 415
 
 #### TDD Green
-- Implement `POST /v1/ingest` + Unstructured.io primary parser + PyMuPDF rescue + 1024-token/128-overlap chunking (recursive primary, structural fallback)
+- Implement `POST /v1/ingest` + `pdfminer.six` primary parser (PDF) + PyMuPDF rescue + `python-docx` (Word) + 1024-token/128-overlap chunking (recursive primary, structural fallback)
 
 #### TDD Refactor
 - Extract parse/chunk as independently testable steps, matching `03-workflows.md`'s checkpoint-boundary design (each step's output persists before the next starts, enabling ingest resume)
@@ -1120,4 +1120,4 @@ N/A — this is a verification-only task with no persistent configuration change
 
 ## Decision References
 
-DEC-012, DEC-021, DEC-033, DEC-034, DEC-035, DEC-036, DEC-038, DEC-042, DEC-046, DEC-051, DEC-056, DEC-059, DEC-060, DEC-063, DEC-065, DEC-067, DEC-068, DEC-075, DEC-076, DEC-077, DEC-078, DEC-080, DEC-081, DEC-082, DEC-086, DEC-087, DEC-088, DEC-089, DEC-091, DEC-092, DEC-093, DEC-096, DEC-102, DEC-105, DEC-106, DEC-109, DEC-116, DEC-117, DEC-127, DEC-128, DEC-129, DEC-131, DEC-133, DEC-134
+DEC-012, DEC-021, DEC-033, DEC-034, DEC-035, DEC-036, DEC-038, DEC-042, DEC-046, DEC-051, DEC-056, DEC-059, DEC-060, DEC-063, DEC-065, DEC-067, DEC-068, DEC-075, DEC-076, DEC-077, DEC-078, DEC-080, DEC-081, DEC-082, DEC-086, DEC-087, DEC-088, DEC-089, DEC-091, DEC-092, DEC-093, DEC-096, DEC-102, DEC-105, DEC-106, DEC-109, DEC-116, DEC-117, DEC-127, DEC-128, DEC-129, DEC-131, DEC-133, DEC-134, DEC-143

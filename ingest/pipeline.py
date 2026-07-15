@@ -1,4 +1,4 @@
-"""Directly-callable ingest pipeline entry point: parse (.md/.txt only)
+"""Directly-callable ingest pipeline entry point: parse (.md/.txt/.pdf/.docx)
 -> chunk -> embed -> Layer 1 ACL enrichment -> Qdrant index write.
 
 Not an HTTP route -- `POST /v1/ingest` doesn't exist until `TASK-033`
@@ -17,38 +17,40 @@ tracking a separate "already indexed" flag.
 
 from __future__ import annotations
 
+import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Callable, cast
 
+import httpx
 from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct, SparseVector
 
 from acl.ingest_stub import ACLLookup
 from ingest.checkpoints import DEFAULT_CHECKPOINT_DIR, read_checkpoint, write_checkpoint
 from ingest.chunking import split_into_chunks
-from ingest.embedding import EmbeddingClient
+from ingest.embedding import EmbeddingClient, EmbeddingResult
 from ingest.identity import DocumentIdentity, IndexTarget
 from ingest.job_store import JobPhase, JobStore
+from ingest.parsing import SUPPORTED_EXTENSIONS, DocumentDecodeError, UnsupportedFormatError, parse_document
 from ingest.qdrant_setup import DENSE_VECTOR_NAME, SPARSE_VECTOR_NAME
+from ingest.retry import compute_backoff_delay
 from ingest.tokenizer import TextTokenizer
 
-SUPPORTED_EXTENSIONS = (".md", ".txt")
+__all__ = [
+    "DocumentDecodeError",
+    "PipelineDependencies",
+    "SUPPORTED_EXTENSIONS",
+    "UnsupportedFormatError",
+    "ingest_document",
+    "resume_ingest_job",
+]
 
-
-class UnsupportedFormatError(ValueError):
-    """Raised for any upload whose extension isn't in
-    SUPPORTED_EXTENSIONS -- PDF/Word included, until Issue 02 widens the
-    accepted set. The caller (eventually TASK-033's HTTP layer) maps
-    this to a 415."""
-
-
-class DocumentDecodeError(ValueError):
-    """Raised when the uploaded bytes aren't valid UTF-8 text -- wraps
-    the raw UnicodeDecodeError so callers see a domain-level error, not
-    an internal decoding detail (coding-standards.md's error-handling
-    boundary rule)."""
+# Bounds the embedding-service retry loop so an unreachable TEI never
+# hangs a job indefinitely -- it fails cleanly (ops-visible via
+# job_store.fail()) once exhausted, per Issue 02's risk review.
+MAX_EMBEDDING_RETRY_ATTEMPTS = 5
 
 
 @dataclass
@@ -59,6 +61,7 @@ class PipelineDependencies:
     embedding_client: EmbeddingClient
     qdrant_client: QdrantClient
     checkpoint_dir: Path = DEFAULT_CHECKPOINT_DIR
+    sleep: Callable[[float], None] = time.sleep
 
 
 def ingest_document(
@@ -76,26 +79,30 @@ def ingest_document(
             f"Unsupported format: {filename!r}. Supported: {SUPPORTED_EXTENSIONS}"
         )
     job_id = deps.job_store.create_job("ingest")
-    _run_pipeline(job_id, file_bytes, identity, target, deps)
+    _run_pipeline(job_id, file_bytes, filename, identity, target, deps)
     return job_id
 
 
 def resume_ingest_job(
     job_id: uuid.UUID,
     file_bytes: bytes,
+    filename: str,
     *,
     identity: DocumentIdentity,
     target: IndexTarget,
     deps: PipelineDependencies,
 ) -> None:
     """Re-invokes the pipeline for an already-created `job_id`, resuming
-    from its last completed step rather than restarting."""
-    _run_pipeline(job_id, file_bytes, identity, target, deps)
+    from its last completed step rather than restarting. `file_bytes`/
+    `filename` are only actually used if parsing hasn't completed yet --
+    a resume past the "parsed" phase reads the checkpoint file instead."""
+    _run_pipeline(job_id, file_bytes, filename, identity, target, deps)
 
 
 def _run_pipeline(
     job_id: uuid.UUID,
     file_bytes: bytes,
+    filename: str,
     identity: DocumentIdentity,
     target: IndexTarget,
     deps: PipelineDependencies,
@@ -105,7 +112,7 @@ def _run_pipeline(
         phase = cast("JobPhase", payload.get("phase", "pending"))
 
         if phase == "pending":
-            payload = _run_parse_step(job_id, file_bytes, deps)
+            payload = _run_parse_step(job_id, file_bytes, filename, deps)
             phase = cast("JobPhase", payload["phase"])
 
         if phase == "parsed":
@@ -121,16 +128,20 @@ def _run_pipeline(
         raise
 
 
-def _run_parse_step(job_id: uuid.UUID, file_bytes: bytes, deps: PipelineDependencies) -> dict[str, Any]:
-    try:
-        text = file_bytes.decode("utf-8")
-    except UnicodeDecodeError as exc:
-        raise DocumentDecodeError(f"Upload is not valid UTF-8 text: {exc}") from exc
+def _run_parse_step(
+    job_id: uuid.UUID, file_bytes: bytes, filename: str, deps: PipelineDependencies
+) -> dict[str, Any]:
+    result = parse_document(file_bytes, filename)
 
-    checkpoint_path = write_checkpoint(deps.checkpoint_dir, job_id, "parsed", {"text": text})
-    deps.job_store.advance(
-        job_id, {"phase": "parsed", "progress": 0.2, "parsed_checkpoint_path": checkpoint_path}
-    )
+    payload_updates: dict[str, object] = {"phase": "parsed", "progress": 0.2}
+    # parser_fallback only applies to PDF (the only format with a rescue
+    # tier) -- absent for .md/.txt/.docx, where the concept doesn't exist.
+    if result.used_fallback_parser is not None:
+        payload_updates["parser_fallback"] = result.used_fallback_parser
+
+    checkpoint_path = write_checkpoint(deps.checkpoint_dir, job_id, "parsed", {"text": result.text})
+    payload_updates["parsed_checkpoint_path"] = checkpoint_path
+    deps.job_store.advance(job_id, payload_updates)
     return deps.job_store.get_payload(job_id)
 
 
@@ -174,7 +185,7 @@ def _run_embed_and_index_step(
     # NFR-012: only chunk text goes to the embedding call -- ACL/identity
     # fields are attached to the payload below, never mixed into the
     # text sent for embedding.
-    embeddings = deps.embedding_client.embed(chunk_texts)
+    embeddings = _embed_with_retry(job_id, chunk_texts, deps)
 
     deps.job_store.advance(job_id, {"phase": "indexing", "progress": 0.7})
 
@@ -208,3 +219,47 @@ def _run_embed_and_index_step(
     # a crash between this write and the checkpoint advance overwrites
     # rather than duplicates (risk review, 2026-07-15).
     deps.qdrant_client.upsert(collection_name=target.collection_name, points=points)
+
+
+def _embed_with_retry(
+    job_id: uuid.UUID, chunk_texts: list[str], deps: PipelineDependencies
+) -> list[EmbeddingResult]:
+    """Retries the embedding call with Full Jitter backoff (`ingest/retry.py`)
+    when the embedding service (TEI) is unreachable -- `httpx.TransportError`,
+    a connection failure, not an HTTP error response (a real 4xx/5xx from a
+    reachable TEI is not transient and propagates immediately). Bounded by
+    MAX_EMBEDDING_RETRY_ATTEMPTS so an outage never hangs the job indefinitely;
+    once exhausted, the last error propagates and `_run_pipeline` marks the
+    job failed.
+
+    `job_queue.payload["phase"]` is deliberately left untouched here (still
+    "chunked", set by the prior step) rather than reset to a "pending"-like
+    value -- doing so would break `_run_pipeline`'s resume dispatch (a crash
+    mid-retry, then `resume_ingest_job`, would re-run `_run_parse_step`,
+    which needs the original file bytes again). The incrementing
+    `retry_count` field is the ops-visible signal instead.
+
+    This blocks the calling thread for the backoff duration (`deps.sleep`,
+    real `time.sleep` in production) rather than releasing the job back to
+    a dispatcher for another worker to pick up -- Issue 02's own text calls
+    this "requeues", which could read as the latter. No dispatcher/worker
+    pool exists anywhere in this codebase yet (`ingest_document`/
+    `resume_ingest_job` are directly-callable synchronous functions, per
+    this module's own top docstring -- `POST /v1/ingest` isn't wired until
+    TASK-033), so an in-process bounded retry is what's actually buildable
+    at this issue's scope; a real cross-process requeue (DEC-038's
+    `SELECT ... FOR UPDATE SKIP LOCKED` pattern releasing the job for
+    another poll cycle) is a design this codebase doesn't have the
+    infrastructure for yet. Revisit this function once a real dispatcher
+    exists (code-review finding, 2026-07-15).
+    """
+    attempt = 0
+    while True:
+        try:
+            return deps.embedding_client.embed(chunk_texts)
+        except httpx.TransportError:
+            attempt += 1
+            if attempt > MAX_EMBEDDING_RETRY_ATTEMPTS:
+                raise
+            deps.job_store.advance(job_id, {"retry_count": attempt})
+            deps.sleep(compute_backoff_delay(attempt))

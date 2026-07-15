@@ -89,7 +89,7 @@ Rejected.
 | **Cache / hot-path store** | **Redis 7.x or Valkey 8.x (OSS fork)** | **DEC-076 (supersedes DEC-034 partial); 2026 mature default for self-hosted RAG above ≤2 concurrent** | **Used for: (a) prompt cache, (b) answer cache keyed by `(query_hash, ACL_set, model_version)` with a secondary `doc_id → cache-key` reverse index for legal-hold targeted invalidation (DEC-109), (c) ACL cache with TTL (§7B.5), (d) embedding cache. Valkey recommended due to Redis 2024 license change** |
 | Persistent task queue | Postgres `SKIP LOCKED` | DEC-038; durable jobs (ingest, CDC re-poll) | Sufficient through V2 |
 | In-request work queue (optional) | Redis stream / list | DEC-076 — for low-latency in-request fan-out only | Persistent jobs stay on Postgres; Redis-backed queue is opt-in |
-| Doc parsing | Unstructured.io + PyMuPDF + python-docx | DEC-036 | Unstructured primary; PyMuPDF rescue |
+| Doc parsing | `pdfminer.six` + PyMuPDF + python-docx | DEC-036, **DEC-143** | **`pdfminer.six` primary + PyMuPDF rescue for PDF (corrected 2026-07-15 — Unstructured.io's PDF module has a hard, unconditional torch/OCR dependency, see DEC-143); python-docx direct for Word, unchanged. Unstructured.io itself has zero remaining role in either format** |
 | Chunking | 1024-token chunks + 128-token overlap + recursive splitter primary, structural splitter fallback | DEC-065 | `chunk_id` immutable per `(document_id, version_id, sequence)` |
 | NLI (faithfulness check) | `deberta-v3-base-mnli` (English-only baseline) | DEC-037 (superseded by DEC-052); **CPU-resident by design, not GPU-resident (confirmed DEC-109, resolves prior §4.2.2 GPU-subtotal contradiction)** | English-only allows smaller base model in place of large; AutoGDA-adapted variant in V2; ≤600ms warm NLI budget (§7B.12) is achievable CPU-side for a base-class DeBERTa model with batching, so GPU residency is not required |
 | **Safety: input rail** | **`Llama Prompt Guard 2` (int4)** | **DEC-077; prompt-injection / jailbreak detection on inbound query and retrieved chunk content; ~1.5 GB VRAM** | **2026 layered-rail default per `92a-stage5r2-benchmark.md` §Topic 9. Runs on the same GPU as `verify/`** |
@@ -262,7 +262,7 @@ The base linear sequence remains the happy-path traversal:
        ▼                                    ▼
 ┌──────────────┐                  ┌──────────────────────────┐
 │  retrieve/   │                  │  ingest/                 │
-│  - hybrid q  │                  │  - parse  (Unstructured) │
+│  - hybrid q  │                  │  - parse  (pdfminer.six) │
 │  - Layer 1   │                  │  - chunk  (1024 + 128,   │
 │    filter    │                  │            DEC-065)      │
 │    pushdown  │                  │  - embed  (TEI English   │
@@ -372,7 +372,7 @@ The variant exists for fast-evaluation demos; it is **not** the canonical MVP sh
 | `verify/` | `config/` for thresholds, NLI service | Never persist directly to Qdrant or Postgres; returns decision to `api/` |
 | `audit/` | Postgres `audit_events` only | Never read from Qdrant or generation; never decide what to write — `api/` provides the full record |
 | `cdc/` | Qdrant payload mutations + Postgres metadata updates + `ECMAdapter` (for ACL refresh) + `cache/` invalidation-only calls (force-refresh the per-user/per-document ACL cache entries on `acl_changed`, per §7B.5 — **added DEC-103, 2026-07-05**) | Never call `retrieve/`, `generate/`, or `verify/`; `cache/` access is invalidation-only — `cdc/` may never read or write business-data cache entries (prompt/answer/embedding cache) |
-| `ingest/` | Unstructured, TEI, Qdrant, Postgres, `ECMAdapter.get_effective_acl()` (Layer 1 enrichment at ingest) | Never call `verify/` |
+| `ingest/` | `pdfminer.six`, PyMuPDF, python-docx, TEI, Qdrant, Postgres, `ECMAdapter.get_effective_acl()` (Layer 1 enrichment at ingest) | Never call `verify/` |
 | `admin/` | Postgres (documents, ACL) | Never call retrieval/generation directly |
 | `eval/` | All read-only via `api/` HTTP | Never bypass the API surface |
 | `config/` | Postgres `model_versions`, `prompt_templates` | Never call any other module |
@@ -1211,7 +1211,7 @@ Secret management, indirect prompt injection deep defense, and SRI rotation runb
 | DEC-033 | Python 3.12 + FastAPI (Python version re-pinned to 3.14 by DEC-134, 2026-07-11) |
 | DEC-034 | Qdrant + Postgres 16; no Redis / Celery / Kafka in MVP (Redis added to MVP by DEC-076, 2026-06-29 — Celery/Kafka exclusion still holds) |
 | DEC-035 | TEI separate processes for embedding + rerank |
-| DEC-036 | Unstructured + PyMuPDF + python-docx for parsing |
+| DEC-036 | Unstructured + PyMuPDF + python-docx for parsing (PDF-primary-parser clause corrected to `pdfminer.six` by DEC-143, 2026-07-15 — Unstructured's PDF module has a hard torch/OCR dependency; PyMuPDF rescue and python-docx-for-Word unchanged) |
 | DEC-037 | deberta-v3-large-mnli for NLI; AutoGDA in V2 (model re-pinned to deberta-v3-base-mnli by DEC-052, 2026-06-28 — English-only pivot) |
 | DEC-038 | Postgres `SKIP LOCKED` for task queue |
 | DEC-039 | MVP no agent loop; ReAct V2 fallback only |

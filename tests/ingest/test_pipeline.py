@@ -1,10 +1,15 @@
 """Tests for ingest/pipeline.py against the 8 acceptance criteria in
-`.scratch/document-ingest-pipeline/issues/01-plaintext-markdown-ingest-pipeline.md`.
+`.scratch/document-ingest-pipeline/issues/01-plaintext-markdown-ingest-pipeline.md`
+plus the 4 acceptance criteria in
+`.scratch/document-ingest-pipeline/issues/02-pdf-word-parsing-retry-resilience.md`
+(PDF/Word parsing, PDF rescue-path fallback, embedding-service retry).
 
 Uses QdrantClient(":memory:") (real client, embedded local mode --
 DEC-140/DEC-141) plus the in-memory/fake job-store, ACL lookup,
 tokenizer, and embedding client -- no live Postgres/TEI needed, per
-DEC-135's Tier-1 default.
+DEC-135's Tier-1 default. Real PDF/DOCX bytes come from
+pdf_docx_fixtures.py's build_pdf_bytes/build_docx_bytes (shared with
+test_parsing.py) rather than committed binary fixture files.
 """
 
 from __future__ import annotations
@@ -12,7 +17,9 @@ from __future__ import annotations
 import uuid
 from pathlib import Path
 
+import httpx
 import pytest
+from pdf_docx_fixtures import build_docx_bytes, build_pdf_bytes
 from qdrant_client import QdrantClient
 from qdrant_client.models import SparseVector
 
@@ -21,6 +28,7 @@ from ingest.embedding import EmbeddingResult, FakeEmbeddingClient
 from ingest.identity import DocumentIdentity, IndexTarget
 from ingest.job_store import InMemoryJobStore
 from ingest.pipeline import (
+    MAX_EMBEDDING_RETRY_ATTEMPTS,
     PipelineDependencies,
     UnsupportedFormatError,
     ingest_document,
@@ -128,7 +136,7 @@ def test_happy_path_txt_upload_also_supported(tmp_path: Path) -> None:
 # --- AC: unsupported_format ---------------------------------------------
 
 
-@pytest.mark.parametrize("filename", ["report.pdf", "memo.docx", "image.png", "noextension"])
+@pytest.mark.parametrize("filename", ["image.png", "noextension"])
 def test_unsupported_format_rejected_with_no_job_created(tmp_path: Path, filename: str) -> None:
     qdrant = QdrantClient(":memory:")
     deps = _make_deps(tmp_path, qdrant)
@@ -239,7 +247,9 @@ def test_checkpoint_idempotency_resume_skips_already_completed_parse_and_chunk(t
 
     deps.embedding_client.embed = counting_embed  # type: ignore[method-assign]
 
-    resume_ingest_job(job_id, b"unused, parse already checkpointed", identity=identity, target=target, deps=deps)
+    resume_ingest_job(
+        job_id, b"unused, parse already checkpointed", "a.md", identity=identity, target=target, deps=deps
+    )
 
     assert deps.job_store.get_status(job_id) == "complete"
     # embed was called exactly once (for the embed+index step) -- parse
@@ -266,7 +276,7 @@ def test_checkpoint_idempotency_retry_after_qdrant_write_relies_on_upsert(tmp_pa
     # Force the job-store back to "indexing" (as if the completion
     # checkpoint never landed), then resume with the same inputs.
     deps.job_store.advance(job_id, {"phase": "indexing", "progress": 0.7})
-    resume_ingest_job(job_id, b"content for retry test", identity=identity, target=target, deps=deps)
+    resume_ingest_job(job_id, b"content for retry test", "a.md", identity=identity, target=target, deps=deps)
 
     points_after_retry = qdrant.scroll(collection_name=target.collection_name, with_payload=True)[0]
     assert len(points_after_retry) == point_count_after_first
@@ -329,3 +339,201 @@ def test_job_payload_stays_lightweight_never_holds_raw_text_or_chunks(tmp_path: 
         if isinstance(value, str):
             assert len(value) < 500, f"{key} looks like it holds bulk content, not a pointer: {value[:80]}..."
         assert long_text not in str(value)
+
+
+# =============================================================================
+# Issue 02: PDF/Word parsing + embedding-service retry resilience
+# .scratch/document-ingest-pipeline/issues/02-pdf-word-parsing-retry-resilience.md
+# =============================================================================
+
+
+class _FlakyEmbeddingClient:
+    """Test-only wrapper: raises httpx.ConnectError a fixed number of times
+    before delegating to a real (fake) embedding client -- simulates a
+    transient TEI outage that later recovers."""
+
+    def __init__(self, fail_times: int) -> None:
+        self._fail_times = fail_times
+        self._calls = 0
+        self._delegate = FakeEmbeddingClient()
+
+    def embed(self, texts: list[str]) -> list[EmbeddingResult]:
+        self._calls += 1
+        if self._calls <= self._fail_times:
+            raise httpx.ConnectError("TEI unreachable (simulated)")
+        return self._delegate.embed(texts)
+
+
+class _AlwaysFailingEmbeddingClient:
+    """Test-only stand-in that always raises a transient connection error --
+    proves the retry loop gives up after MAX_EMBEDDING_RETRY_ATTEMPTS
+    instead of hanging indefinitely."""
+
+    def embed(self, texts: list[str]) -> list[EmbeddingResult]:
+        raise httpx.ConnectError("TEI permanently unreachable (simulated)")
+
+
+# --- AC: pdf_happy_path -------------------------------------------------------
+
+
+def test_pdf_happy_path_upload_reaches_ready_with_correctly_populated_chunk_payloads(tmp_path: Path) -> None:
+    qdrant = QdrantClient(":memory:")
+    deps = _make_deps(tmp_path, qdrant)
+    identity = _make_identity()
+    target = _make_target(qdrant)
+    _seed_acl(deps, identity)
+
+    pdf_bytes = build_pdf_bytes("Extracted via pdfminer six primary parser")
+    job_id = ingest_document(pdf_bytes, "report.pdf", identity=identity, target=target, deps=deps)
+
+    assert deps.job_store.get_status(job_id) == "complete"
+    assert deps.job_store.get_payload(job_id)["phase"] == "ready"
+    points = qdrant.scroll(collection_name=target.collection_name, with_payload=True)[0]
+    assert len(points) > 0
+    assert points[0].payload is not None
+    assert "Extracted via pdfminer six primary parser" in points[0].payload["text"]
+
+
+# --- AC: docx_happy_path -------------------------------------------------------
+
+
+def test_docx_happy_path_upload_reaches_ready_with_correctly_populated_chunk_payloads(tmp_path: Path) -> None:
+    qdrant = QdrantClient(":memory:")
+    deps = _make_deps(tmp_path, qdrant)
+    identity = _make_identity()
+    target = _make_target(qdrant)
+    _seed_acl(deps, identity)
+
+    docx_bytes = build_docx_bytes("Extracted via python-docx")
+    job_id = ingest_document(docx_bytes, "memo.docx", identity=identity, target=target, deps=deps)
+
+    assert deps.job_store.get_status(job_id) == "complete"
+    assert deps.job_store.get_payload(job_id)["phase"] == "ready"
+    points = qdrant.scroll(collection_name=target.collection_name, with_payload=True)[0]
+    assert len(points) > 0
+    assert points[0].payload is not None
+    assert "Extracted via python-docx" in points[0].payload["text"]
+
+
+# --- AC: pdf_rescue_path -------------------------------------------------------
+
+
+def test_pdf_rescue_path_activates_on_primary_parser_failure_and_sets_parser_fallback_flag(
+    tmp_path: Path, mocker
+) -> None:  # type: ignore[no-untyped-def]
+    mocker.patch("ingest.parsing.pdfminer_extract_text", side_effect=ValueError("malformed PDF (simulated)"))
+    qdrant = QdrantClient(":memory:")
+    deps = _make_deps(tmp_path, qdrant)
+    identity = _make_identity()
+    target = _make_target(qdrant)
+    _seed_acl(deps, identity)
+
+    pdf_bytes = build_pdf_bytes("Rescued by PyMuPDF")
+    job_id = ingest_document(pdf_bytes, "report.pdf", identity=identity, target=target, deps=deps)
+
+    assert deps.job_store.get_status(job_id) == "complete"
+    payload = deps.job_store.get_payload(job_id)
+    assert payload["phase"] == "ready"
+    assert payload["parser_fallback"] is True
+    points = qdrant.scroll(collection_name=target.collection_name, with_payload=True)[0]
+    assert len(points) > 0
+    assert points[0].payload is not None
+    assert "Rescued by PyMuPDF" in points[0].payload["text"]
+
+
+def test_pdf_normal_parse_leaves_parser_fallback_false(tmp_path: Path) -> None:
+    qdrant = QdrantClient(":memory:")
+    deps = _make_deps(tmp_path, qdrant)
+    identity = _make_identity()
+    target = _make_target(qdrant)
+    _seed_acl(deps, identity)
+
+    pdf_bytes = build_pdf_bytes("Normal parse, no rescue needed")
+    job_id = ingest_document(pdf_bytes, "report.pdf", identity=identity, target=target, deps=deps)
+
+    assert deps.job_store.get_payload(job_id)["parser_fallback"] is False
+
+
+def test_non_pdf_upload_has_no_parser_fallback_key_at_all(tmp_path: Path) -> None:
+    qdrant = QdrantClient(":memory:")
+    deps = _make_deps(tmp_path, qdrant)
+    identity = _make_identity()
+    target = _make_target(qdrant)
+    _seed_acl(deps, identity)
+
+    job_id = ingest_document(b"plain markdown", "notes.md", identity=identity, target=target, deps=deps)
+
+    assert "parser_fallback" not in deps.job_store.get_payload(job_id)
+
+
+# --- AC: embedding_service_retry ------------------------------------------------
+
+
+def test_embedding_service_retry_recovers_after_transient_outage_with_incrementing_retry_count(
+    tmp_path: Path,
+) -> None:
+    qdrant = QdrantClient(":memory:")
+    deps = _make_deps(tmp_path, qdrant)
+    deps.embedding_client = _FlakyEmbeddingClient(fail_times=2)
+    deps.sleep = lambda _delay: None  # instant retries in test -- the
+    # jitter/backoff *values* are tested directly in test_retry.py
+    identity = _make_identity()
+    target = _make_target(qdrant)
+    _seed_acl(deps, identity)
+
+    job_id = ingest_document(b"content for retry test", "a.md", identity=identity, target=target, deps=deps)
+
+    assert deps.job_store.get_status(job_id) == "complete"
+    payload = deps.job_store.get_payload(job_id)
+    assert payload["retry_count"] == 2
+    # never reset to a "pending"-like phase during the retry -- see
+    # ingest/pipeline.py::_embed_with_retry's docstring for why
+    assert payload["phase"] == "ready"
+    points = qdrant.scroll(collection_name=target.collection_name, with_payload=True)[0]
+    assert len(points) > 0
+
+
+def test_embedding_service_retry_gives_up_after_max_attempts_and_fails_the_job(tmp_path: Path) -> None:
+    qdrant = QdrantClient(":memory:")
+    deps = _make_deps(tmp_path, qdrant)
+    deps.embedding_client = _AlwaysFailingEmbeddingClient()
+    deps.sleep = lambda _delay: None
+    identity = _make_identity()
+    target = _make_target(qdrant)
+    _seed_acl(deps, identity)
+
+    captured_job_ids: list[uuid.UUID] = []
+    original_create_job = deps.job_store.create_job
+
+    def spying_create_job(job_type: str) -> uuid.UUID:
+        job_id = original_create_job(job_type)
+        captured_job_ids.append(job_id)
+        return job_id
+
+    deps.job_store.create_job = spying_create_job  # type: ignore[method-assign]
+
+    with pytest.raises(httpx.TransportError):
+        ingest_document(b"content", "a.md", identity=identity, target=target, deps=deps)
+
+    job_id = captured_job_ids[0]
+    assert deps.job_store.get_status(job_id) == "failed"
+    payload = deps.job_store.get_payload(job_id)
+    assert payload["retry_count"] == MAX_EMBEDDING_RETRY_ATTEMPTS
+    # never hangs indefinitely -- bounded retries, then a clean terminal
+    # failure state, no chunk written
+    points = qdrant.scroll(collection_name=target.collection_name, with_payload=True)[0]
+    assert points == []
+
+
+def test_embedding_service_retry_backoff_is_jittered_across_concurrently_retrying_jobs() -> None:
+    """The AC explicitly allows a case in this same test file rather than
+    requiring a separate one; ingest/retry.py's own test_retry.py already
+    covers this property directly (test_backoff_delay_is_jittered_not_deterministic)
+    -- this asserts the same property from the pipeline's point of view: the
+    delay computed for the same attempt number across several simulated
+    concurrently-retrying jobs is not always identical, which is what rules
+    out a thundering-herd retry storm re-crashing a just-recovered TEI."""
+    from ingest.retry import compute_backoff_delay
+
+    delays_for_attempt_one = {compute_backoff_delay(attempt=1) for _ in range(20)}
+    assert len(delays_for_attempt_one) > 1

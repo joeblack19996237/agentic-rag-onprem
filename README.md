@@ -28,7 +28,7 @@ See [`specs/01-product-brief.md`](specs/01-product-brief.md) for the full proble
 - ✅ data-foundation Issue 02 — Qdrant collection + 5 mandatory payload indexes (vector config + Layer 1 filter semantics verified against a real embedded client; live-server index-existence check pending)
 
 - ✅ document-ingest-pipeline Issue 01 — plain-text/Markdown ingest pipeline (parse→chunk→embed→ACL-enrich→index, job-store checkpointing, a disposable `acl/` stub; real Postgres job-store round-trip pending, no live server in this sandbox)
-- ⏳ document-ingest-pipeline Issue 02 — PDF/Word parsing + embedding-service retry resilience (blocked by Issue 01, not yet implemented)
+- ✅ document-ingest-pipeline Issue 02 — PDF/Word parsing (`pdfminer.six` primary + PyMuPDF rescue, corrected from Unstructured.io mid-implementation — DEC-143) + embedding-service retry resilience (Full Jitter backoff); 100-page reference-hardware timing check pending
 
 If this list looks out of date, [`.scratch/phase-1-bootstrap/issues/`](.scratch/phase-1-bootstrap/issues/), [`.scratch/data-foundation/issues/`](.scratch/data-foundation/issues/), and [`.scratch/document-ingest-pipeline/issues/`](.scratch/document-ingest-pipeline/issues/) (or the next phase's issue directory) are the authoritative status, not this README.
 

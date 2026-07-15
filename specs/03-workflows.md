@@ -35,7 +35,7 @@ flowchart TD
     A["POST /v1/ingest (multipart upload)"] --> B["ingest/ : validate format (PDF/Word/MD/text)"]
     B -->|unsupported format| B1["415 with supported-format list"]
     B -->|supported| C["Return document_id + status_url (< 1s, REQ-001)"]
-    C --> D["ingest/ : parse (Unstructured.io primary, PyMuPDF rescue)"]
+    C --> D["ingest/ : parse (pdfminer.six primary + PyMuPDF rescue for PDF; python-docx for Word; DEC-143)"]
     D -->|parse failure| D1["status = failed; structured error + retry guidance"]
     D -->|parse success| E["ingest/ : chunk (1024 tok + 128 overlap, recursive splitter primary, structural fallback)"]
     E --> F["ingest/ : embed (bge-m3 dense + sparse via TEI)"]
@@ -55,7 +55,7 @@ flowchart TD
 | Failure point | Behavior |
 |---|---|
 | Unsupported format at upload | HTTP 415 with the supported-format list; no `document_id` issued |
-| Parse failure (Unstructured.io fails, PyMuPDF rescue also fails) | `status = failed`; structured error body with retry guidance; no partial chunks written |
+| Parse failure (`pdfminer.six` fails, PyMuPDF rescue also fails) | `status = failed`; structured error body with retry guidance; no partial chunks written |
 | Embedding service (TEI) unreachable during ingest | Job requeues via `job_queue` (`SKIP LOCKED`, DEC-038); admin sees `status = pending` with an ops-visible retry count, not a silent hang |
 | ECM `get_effective_acl()` unreachable at ingest | Ingest blocks — a chunk must never be written to Qdrant without Layer 1 ACL payload (NFR-012 adjacent: writing a chunk with no ACL payload would default to universally-visible, the opposite of fail-closed). Job requeues with backoff |
 
