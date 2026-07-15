@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: ready-for-human
 
 # Issue 02: Ingest HTTP Routes
 
@@ -28,18 +28,30 @@ This uses an in-process scheduler, not `TASK-010`'s Postgres job-queue dispatche
 
 ## Acceptance criteria
 
-- [ ] `POST /v1/ingest` schedules the pipeline call via the `TaskScheduler` fake rather than awaiting it inline — verified via the `FakeTaskScheduler`'s recorded call, not response timing, not a spy on `BackgroundTasks` directly; a `logger.warning` naming the job and the TASK-010 crash-recovery gap is emitted (asserted via `caplog`)
+- [x] `POST /v1/ingest` schedules the pipeline call via the `TaskScheduler` fake rather than awaiting it inline — verified via the `FakeTaskScheduler`'s recorded call, not response timing, not a spy on `BackgroundTasks` directly; a `logger.warning` naming the job and the TASK-010 crash-recovery gap is emitted (asserted via `caplog`)
       Verification: `pytest tests/api/test_ingest_routes.py -k schedules_background -v`
-- [ ] `POST /v1/ingest` with a valid multipart upload returns `{document_id, status_url}` matching `06-api-contracts.md`'s shape, `status_url` a relative path (`/v1/ingest/{document_id}`, no scheme/host)
+      **Done (2026-07-15)**: `test_schedules_background` passing.
+- [x] `POST /v1/ingest` with a valid multipart upload returns `{document_id, status_url}` matching `06-api-contracts.md`'s shape, `status_url` a relative path (`/v1/ingest/{document_id}`, no scheme/host)
       Verification: `pytest tests/api/test_ingest_routes.py -k returns_document_id_and_status_url -v`
-- [ ] An upload whose `UploadFile.content_type` isn't in the accepted set returns `415 unsupported_media_type` with `error.details.supported_formats` listing the accepted types, and no `document_id` is issued; the accepted MIME-type set is derived from `ingest/parsing.py`'s real `SUPPORTED_EXTENSIONS`, not independently duplicated
+      **Done (2026-07-15)**: `test_returns_document_id_and_status_url` passing. **Resolved during implementation**: `ingest_document()` doesn't accept a caller-supplied job id (`JobStore.create_job()` generates its own), so this route calls `job_store.create_job()` first and uses that same id as both `documents.document_id` and the returned `document_id` — then calls `resume_ingest_job(job_id, ...)` (which takes an already-created job, unlike `ingest_document()`) against it. One id, no separate mapping table; see `api/ingest_routes.py`'s own module docstring.
+- [x] An upload whose `UploadFile.content_type` isn't in the accepted set returns `415 unsupported_media_type` with `error.details.supported_formats` listing the accepted types, and no `document_id` is issued; the accepted MIME-type set is derived from `ingest/parsing.py`'s real `SUPPORTED_EXTENSIONS`, not independently duplicated
       Verification: `pytest tests/api/test_ingest_routes.py -k rejects_unsupported_mime_type -v`
-- [ ] `GET /v1/ingest/{document_id}` reflects each of `pending`/`parsing`/`indexing`/`ready`/`failed` correctly per the explicit `JobPhase→status` table above (both `parsed` and `chunked` map to `parsing`), and `progress` is a straight pass-through of `job_queue.payload["progress"]` — given a `job_store` row seeded directly at that phase (reusing `ingest/job_store.py`'s existing `InMemoryJobStore` fake) — not by racing a real background task in real time
+      **Done (2026-07-15)**: `test_rejects_unsupported_mime_type` passing; `_EXTENSION_TO_MIME_TYPE` carries a module-level `assert` tying its keys to `SUPPORTED_EXTENSIONS` directly, so drift between the two fails at import time, not silently.
+- [x] `GET /v1/ingest/{document_id}` reflects each of `pending`/`parsing`/`indexing`/`ready`/`failed` correctly per the explicit `JobPhase→status` table above (both `parsed` and `chunked` map to `parsing`), and `progress` is a straight pass-through of `job_queue.payload["progress"]` — given a `job_store` row seeded directly at that phase (reusing `ingest/job_store.py`'s existing `InMemoryJobStore` fake) — not by racing a real background task in real time
       Verification: `pytest tests/api/test_ingest_routes.py -k status_mapping -v`
-- [ ] `GET /v1/ingest/{document_id}` for an unknown id returns `404 not_found`, not an empty/zero-valued status object
+      **Done (2026-07-15)**: `test_status_mapping` parametrized over all 6 real `JobPhase` values, all passing. **Found during implementation, fixed here**: `ingest/job_store.py`'s `JobStore.fail()` and `ingest/pipeline.py`'s exception handling store the *raw* exception text in `payload["errors"]` — both modules' own docstrings already flagged that whoever wires this HTTP route must redact it before it crosses the trust boundary (`docs/coding-standards.md`'s error-handling rule; code review, 2026-07-15, on both). This route returns a generic message for a `failed` job instead of the raw payload; `test_status_mapping`'s `failed` case asserts the raw text never appears in the response body.
+- [x] `GET /v1/ingest/{document_id}` for an unknown id returns `404 not_found`, not an empty/zero-valued status object
       Verification: `pytest tests/api/test_ingest_routes.py -k unknown_id_returns_404 -v`
-- [ ] Both routes accept **either** a valid JWT **or** a valid admin API key (tested independently, not just one credential type), and reject an invalid/missing credential with `401` — reusing Issue 01's middleware, no new auth code
+      **Done (2026-07-15)**: `test_unknown_id_returns_404` passing; catches `LookupError` (covers both `InMemoryJobStore`'s bare `KeyError`, a `LookupError` subclass, and `SqlAlchemyJobStore`'s own explicit `LookupError`).
+- [x] Both routes accept **either** a valid JWT **or** a valid admin API key (tested independently, not just one credential type), and reject an invalid/missing credential with `401` — reusing Issue 01's middleware, no new auth code
       Verification: `pytest tests/api/test_ingest_routes.py -k requires_auth -v` (parametrized over both credential types plus the missing/invalid case)
+      **Done (2026-07-15)**: 6 tests match this filter (`post`/`get` × missing-credentials/invalid-admin-key/accepts-admin-key/accepts-jwt, as applicable to each route), all passing.
+
+**Two more findings from `/code-review`'s Spec axis, both decided with the user, 2026-07-15**:
+- `06-api-contracts.md` documents this route's JWT auth as "(admin scope)" with `403` for an insufficiently-scoped token, but `api/auth.py`'s `AuthContext` (Issue 01) has no scope/role concept — any correctly-signed JWT is accepted. Decided: leave as a documented, known gap rather than invent a JWT-claim convention now — this codebase has no end-user JWT issuance flow yet (no login, no OIDC beyond JWKS signature verification), so the gap is real but currently unreachable. Must be closed before Phase 3's real end-user JWT issuance exists. See `api/ingest_routes.py`'s own module docstring.
+- `resolve_index_target(session, corpus_id=repository_id)` uses `repository_id` as the Qdrant `corpus_id` — no spec file defines `corpus_id`'s value source or states it equals `repository_id`. Decided: keep this as a working assumption (matches the single-repository-install MVP framing), flagged as an `update-specs` candidate to make the relationship explicit rather than left implicit.
+
+**Found during implementation, resolved with the user (not addressed anywhere in this issue's original text)**: `acl/ingest_stub.py`'s `SqlAlchemyACLLookup` reads an *existing* `document_versions` row — but a brand-new upload has no such row yet, and no real ECM integration exists (`TASK-013`, Phase 3) to source Layer 1 ACL data from otherwise. Resolved: this route requires the multipart form's `acl_override` field (present in `06-api-contracts.md` but marked "advanced") and creates the `documents`/`document_versions` rows from it directly, rejecting with `400` if absent — matching this codebase's fail-closed ACL philosophy rather than defaulting to any ACL. Two new ACs covered this: `test_missing_acl_override_returns_400`, `test_invalid_acl_override_returns_400`.
 
 ## Blocked by
 

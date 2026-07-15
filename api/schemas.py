@@ -23,13 +23,17 @@ class ErrorResponse(BaseModel):
     error: ErrorDetail
 
 
-def error_response(status_code: int, code: str, message: str) -> JSONResponse:
+def error_response(
+    status_code: int, code: str, message: str, details: dict[str, object] | None = None
+) -> JSONResponse:
     """Builds the one error shape every non-2xx response across this API
     uses, with a fresh `request_id` -- the single place every route/handler
     constructs one, rather than each repeating the same three-line shape."""
     return JSONResponse(
         status_code=status_code,
         content=ErrorResponse(
-            error=ErrorDetail(code=code, message=message, request_id=str(uuid.uuid4()))
+            error=ErrorDetail(
+                code=code, message=message, request_id=str(uuid.uuid4()), details=details or {}
+            )
         ).model_dump(),
     )
