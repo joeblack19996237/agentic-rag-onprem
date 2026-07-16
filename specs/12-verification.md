@@ -14,7 +14,7 @@ This is the "are we actually done" checklist. Every gate below has a testable pa
 | VG-002 | REQ-002 (parse/chunk/embed/index) | TEST-023 output, timed | 100-page born-digital PDF reaches `ready` in ≤60s | Backend |
 | VG-003 | REQ-003 (hybrid retrieval) | TEST-006 output | Filtered recall matches unfiltered baseline; both dense and sparse vectors independently contribute (not dense-only) | Backend |
 | VG-004 | REQ-004 (cited generation) | TEST-023 output | Every assertion-bearing sentence carries ≥1 citation resolving to a `reranked_set` chunk | Backend/AI |
-| VG-005 | REQ-005 (citation verification) | TEST-001, TEST-002, TEST-021, TEST-022 | Mechanical + NLI checks correctly reject fabricated/malformed citations, including the DEC-088 adversarial case | Backend/AI |
+| VG-005 | REQ-005 (citation verification) | TEST-001, TEST-002, TEST-021, TEST-022, TEST-023 (added 2026-07-16, DEC-147, second cross-model review R.6) | Mechanical + NLI checks correctly reject fabricated/malformed citations, including the DEC-088 adversarial case — TEST-001/002/021/022 cover the mechanical half only (`verify/.mechanical_fast_path`); REQ-005's own text requires both mechanical *and* NLI entailment, and had no test exercising the NLI half at all until TEST-023 (E2E happy path, which runs both) was added here | Backend/AI |
 | VG-006 | REQ-006 (refusal policy) | TEST-005, TEST-024 | All 5 refusal classes correctly triggerable, all HTTP 200 | Backend/AI |
 | VG-007 | REQ-007 (audit log) | TEST-024 output | Every turn (answered or refused) produces exactly one complete `audit_events` row with non-null `context_fingerprint` | Backend |
 | VG-008 | REQ-008 (HTTP API) | `06-api-contracts.md`'s contract tests | OpenAPI spec generated; every documented endpoint exercised by the integration test suite | Backend |
@@ -27,7 +27,7 @@ This is the "are we actually done" checklist. Every gate below has a testable pa
 | VG-015 | REQ-041/REQ-057 (CDC, both transports) | TEST-009, TEST-010 | Webhook idempotency + poll-only cursor advancement both correct | Backend |
 | VG-016 | REQ-045 (ECM audit write-back) | Integration test against a stub `ECMAdapter` | Both `granted` and `denied` intents written; async, non-blocking (NFR-013) | Backend |
 | VG-017 | REQ-046 (LangGraph orchestration) | TASK-011 verification evidence | Graph traversal matches the canonical sequence; node internals framework-agnostic | Backend |
-| VG-018 | REQ-047 (Redis cache) | TEST-025 (referenced from `11-test-plan.md`) | Cache-hit + TTL/invalidation discipline verified | Backend |
+| VG-018 | REQ-047 (Redis cache) | TEST-043 (corrected 2026-07-16, DEC-147, second cross-model review R.4 — previously cited `TEST-025`, an install-timing E2E test with no cache-behavior coverage at all; a `TASK-025`↔`TEST-025` numbering coincidence, not a real cross-reference) | Cache-hit + TTL/invalidation discipline verified | Backend |
 | VG-019 | REQ-048 (layered safety rails) | TEST-013, TEST-014 | All 4 rail layers independently verified with correct verdict-to-refusal mapping | AI |
 | VG-020 | REQ-050 (`SafetyRailAdapter` protocol) | TEST-036 | Stub adapter swap changes refusal behavior predictably; audit captures the swapped verdict; no code change required to swap | AI |
 | VG-021 | REQ-056 (reconciliation crawl) | TEST-020 | Orphaned document correctly flagged; no auto-remediation | Backend |
@@ -46,6 +46,10 @@ This is the "are we actually done" checklist. Every gate below has a testable pa
 | VG-034 | NFR-024 (cost-per-turn formula + eval-harness reporting, DEC-129) | TEST-039 | `cost_per_turn` metric matches the documented formula; golden-set eval report includes cost-per-turn mean/p95 | Backend/AI |
 | VG-035 | NFR-028 (vLLM optimization flags, DEC-129) | TEST-040 | `vllm.config` introspection confirms flag values match the tier/VRAM-conditional rule at both floor and comfort tier, and under a simulated low-VRAM validation result | Backend |
 | VG-036 | NFR-007 (restart-durability, DEC-129) | TASK-039 output | Previously-ingested document and previously-written `audit_events` row both intact and unchanged after `docker compose down && docker compose up` | DevOps |
+| VG-037 | NFR-022 (per-rail latency budget, added 2026-07-16, DEC-147) | TEST-041 output | `safety_input` p95 ≤ 150ms; `safety_output` p95 ≤ 250ms; `policy/` additive overhead p95 ≤ 30ms, each measured via its own OTEL GenAI span | AI |
+| VG-038 | REQ-010/NFR-009 (admin-scope JWT claims, TASK-040, added 2026-07-16, DEC-147) | TEST-042 output | A validly-signed, insufficiently-scoped JWT returns `403` on every admin-surface route; a correctly-scoped JWT and the admin API key both continue to work with no regression | Backend |
+
+**`VG-037`/`VG-038` added 2026-07-16 (second cross-model review R.3)**: `TEST-041` (per-rail latency, added 2026-07-13 review R.17) had existed in `11-test-plan.md` since that review but was never given a verification gate here — an orphaned test with no release-gate consequence. `TASK-040` (admin-scope JWT claims, added same day as this fix) had neither a `TEST-###` nor a `VG-###` at all — `11-test-plan.md` gains `TEST-042` alongside this row.
 
 ## Demo Script
 

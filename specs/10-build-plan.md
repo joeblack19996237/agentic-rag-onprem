@@ -261,10 +261,12 @@ Schema migrations are the DB-migration exempt type.
 
 **Phase**: Phase 2
 **Verification Pattern**: TDD
-**Related Requirements**: REQ-003, REQ-037, NFR-012, DEC-046, DEC-086
+**Related Requirements**: REQ-003, REQ-037, NFR-006, NFR-012, DEC-046, DEC-086
 **Owner Role**: Backend
 **Dependencies**: TASK-008
 **Team-path**: ~5 days | **Solo-path**: ~9 days
+
+**`NFR-006` ownership added 2026-07-16 (DEC-147, second cross-model review R.5)**: ingest throughput (≥100 pages/min, TEST-033) was measured by an existing test with no build-plan task responsible for meeting it. This task (the embed/index stage, the network-I/O-bound half of the pipeline per DEC-142's own noted per-text HTTP-call cost) is the natural throughput-limiting owner — `TASK-008` (parse/chunk, CPU-bound) contributes but is not typically the bottleneck.
 
 **Cross-reference correction (Stage 8 audit finding, 2026-07-06)**: this task already implements REQ-037's capture-at-ingest half (`retention_state` populated from `ECMAdapter.get_retention_state()` into the Qdrant payload, per the TDD Red test below) — the "Related Requirements" field previously omitted REQ-037, which the Stage 8 auditor's independent grep correctly flagged as an orphaned requirement. REQ-037's enforcement-at-retrieval half is TASK-013's `acl/` Layer 2 re-check (already correctly covered there via REQ-036/DEC-046).
 
@@ -501,7 +503,35 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 - [ ] `06-api-contracts.md`'s documented `403` (insufficient scope) becomes reachable for the first time — confirmed by an actual `403` response in a test, not just a route's `responses={}` declaration
 
 #### Verification Evidence
-- Scope-enforcement test suite covering every admin-surface route, plus a full regression run of `api-surface`'s existing suite
+- Scope-enforcement test suite covering every admin-surface route (`TEST-042`, `VG-038` — added 2026-07-16, DEC-147, closing the orphaned-task gap the second cross-model review's R.3 found: this task had no `TEST-###`/`VG-###` at all before this), plus a full regression run of `api-surface`'s existing suite
+
+### TASK-042: API Rate Limiting (Closes NFR-017's Build-Plan Gap)
+
+**Phase**: Phase 2
+**Verification Pattern**: TDD
+**Related Requirements**: NFR-017
+**Owner Role**: Backend
+**Dependencies**: TASK-033
+**Team-path**: ~2 days | **Solo-path**: ~3 days
+
+**Added 2026-07-16 (second cross-model review R.5, NFR→TASK sweep)**: NFR-017 (rate limiting at the API surface: default 60 queries/token/minute, burst 10/5s, admin-configurable; per-IP secondary limit for the unauthenticated demo widget; `429` with `Retry-After` over-limit) has an existing test (`TEST-028`) but had no build-plan task responsible for implementing it — `api-surface`/`TASK-033`'s shipped `api/` routes (Issues 01-04) do not implement rate limiting today, confirmed by grep (zero references to rate limiting or `429` anywhere in the shipped `api/` module). Not folded into `TASK-033` itself, matching `TASK-040`'s own precedent for a gap found after that task's own scope had already shipped — a Phase 2 continuation, not a retroactive expansion of an already-closed task's claimed scope.
+
+#### TDD Red
+- Test: a token issuing 100 QPS receives `429` responses with a `Retry-After` header once its rate exceeds 60/minute (burst 10/5s), and an abuse-alert observation is emitted; a request under the limit is unaffected (per `TEST-028`'s existing scenario)
+
+#### TDD Green
+- Implement rate-limiting middleware in `api/` — token-bucket or sliding-window, default 60 req/token/min with a 10-req/5s burst allowance, admin-configurable (mechanism not pinned here — this task's own design decision); a separate, secondary per-IP limit for requests carrying no token (the unauthenticated demo-widget path)
+
+#### TDD Refactor
+- Confirm every currently-shipped route (`api-surface` Issues 01-04) picks up the limiter with no route-by-route special-casing — the check belongs in shared middleware, not duplicated per route, the same pattern `TASK-040`'s own Refactor step uses for scope-claim enforcement
+
+#### Acceptance Criteria
+- [ ] A token sustaining >60 req/min (burst >10/5s) receives `429` with `Retry-After`; a token under the limit is unaffected
+- [ ] An unauthenticated request path (demo widget) is independently rate-limited per-IP, not exempted
+- [ ] An abuse-alert observation is emitted on sustained over-limit, per NFR-017's own acceptance criterion
+
+#### Verification Evidence
+- `TEST-028`'s output (already specified; this task is what makes that test meaningful rather than referencing unbuilt work), `VG-###` to be registered once this task is picked up for implementation (not registered speculatively here, unlike `TASK-040`'s `TEST-042`/`VG-038` — those closed a gap in an already-shipped task's traceability; this one is genuinely not built yet)
 
 ## Phase 3: Pipeline Skeleton + Two-Layer ACL + CDC
 
@@ -687,6 +717,36 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 #### Verification Evidence
 - Both integration tests' output
 
+### TASK-043: VRAM-Aware Admission Control + Queue-Depth Visibility (Closes NFR-030/031's Build-Plan Gap)
+
+**Phase**: Phase 3
+**Verification Pattern**: TDD
+**Related Requirements**: NFR-030, NFR-031
+**Owner Role**: Backend
+**Dependencies**: TASK-011
+**Team-path**: ~3 days | **Solo-path**: ~5 days
+
+**Added 2026-07-16 (second cross-model review R.5, NFR→TASK sweep)**: NFR-030 (VRAM-aware admission control, Round 5 DEC-098) and NFR-031 (cold-cache burst `queue_depth` visibility, same round) both have an existing integration-test description in `02-requirements.md` but no build-plan task responsible for implementing either. Bundled into one task rather than two: both are the same admission/queueing subsystem — NFR-030 is the gating decision (admit or queue), NFR-031 is that decision's own visibility surface (the widget must show "queued," never a silent stall) — implementing one without the other leaves either an ungated system or an invisible queue. Placed in Phase 3, depending on `TASK-011` (`LangGraph Skeleton`), since admission gating is naturally a pre-graph-entry check in the orchestration layer this task builds.
+
+#### TDD Red
+- Test: simulate concurrent conversations driving KV-cache growth toward the measured VRAM ceiling; a new query arriving below the configured headroom floor is queued, not admitted, and does not trigger an OOM or a degraded response; `vram_headroom_gb` is observable via the metric NFR-030 requires
+- Test: force `queue_depth > 0`; the widget surfaces a visible "queued" state within 1s of the query being queued — never a silent stall
+
+#### TDD Green
+- Implement VRAM-headroom-gated admission ahead of `TASK-011`'s graph entry point: track headroom against a configured floor, queue rather than admit below it; expose `queue_depth` as an observable metric and surface it through to the widget's query-status response
+
+#### TDD Refactor
+- Confirm the demo-day burst scenario (`04-architecture.md` §9.4) behaves per its own documented guidance — simultaneous first-questions from multiple demo attendees queue visibly rather than one silently failing; deployment/demo-facilitation guidance (staggering simultaneous first-questions) documented per NFR-031's own acceptance criterion
+
+#### Acceptance Criteria
+- [ ] A query arriving when measured VRAM headroom is below the configured floor queues rather than being admitted; no OOM or degraded response results
+- [ ] `vram_headroom_gb` and `queue_depth` are both observable metrics
+- [ ] A queued query's widget-facing state shows "queued" within 1s — never a silent stall
+- [ ] `09-deployment-ops.md` documents facilitator guidance for staggering simultaneous first-questions during live demos
+
+#### Verification Evidence
+- Both integration tests' output (concurrent-admission simulation; forced-queue widget-visibility check); `TEST-###`/`VG-###` to be registered once this task is picked up for implementation (genuinely not built yet, unlike `TASK-040`'s retroactive `TEST-042`/`VG-038` registration)
+
 ## Phase 4: Layered Safety Rails + `verify/`
 
 **Objective**: the full DEC-077 layered-rail stack is live, and `verify/` (mechanical + NLI) produces real refusal decisions — this is the phase where the product's core differentiator becomes real.
@@ -699,7 +759,7 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 
 **Phase**: Phase 4
 **Verification Pattern**: TDD
-**Related Requirements**: REQ-048, NFR-021 (added post-Stage-8, DEC-129 — near-duplicate of REQ-048, cross-cited so the NFR resolves to a task, not just the REQ), DEC-077, DEC-082
+**Related Requirements**: REQ-048, NFR-021 (added post-Stage-8, DEC-129 — near-duplicate of REQ-048, cross-cited so the NFR resolves to a task, not just the REQ), NFR-022 (added 2026-07-16, DEC-147 — per-rail latency budget, this rail's ≤150ms share; same addition made to TASK-020/TASK-021 for their own rails; already measured by the existing TEST-041, which previously had no owning TASK or VG — see VG-037 in `12-verification.md`), DEC-077, DEC-082
 **Owner Role**: AI
 **Dependencies**: TASK-012
 **Team-path**: ~5 days | **Solo-path**: ~9 days
@@ -749,7 +809,7 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 
 **Phase**: Phase 4
 **Verification Pattern**: TDD
-**Related Requirements**: REQ-048, NFR-021 (added post-Stage-8, DEC-129), DEC-077, DEC-082, DEC-092
+**Related Requirements**: REQ-048, NFR-021 (added post-Stage-8, DEC-129), NFR-022 (added 2026-07-16, DEC-147 — this rail's ≤250ms share of the per-rail latency budget, see TASK-018's own note), DEC-077, DEC-082, DEC-092
 **Owner Role**: AI
 **Dependencies**: TASK-014
 **Team-path**: ~5 days | **Solo-path**: ~9 days
@@ -774,7 +834,7 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 
 **Phase**: Phase 4
 **Verification Pattern**: TDD
-**Related Requirements**: REQ-048, NFR-021 (added post-Stage-8, DEC-129), DEC-077
+**Related Requirements**: REQ-048, NFR-021 (added post-Stage-8, DEC-129), NFR-022 (added 2026-07-16, DEC-147 — this rail's ≤30ms additive-overhead share of the per-rail latency budget, see TASK-018's own note), DEC-077
 **Owner Role**: AI
 **Dependencies**: TASK-018, TASK-020
 **Team-path**: ~3 days | **Solo-path**: ~5 days
@@ -901,7 +961,7 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 - [ ] Cache-hit test passes; TTL/force-refresh discipline (NFR-025) verified
 
 #### Verification Evidence
-- Cache-hit/invalidation test suite
+- Cache-hit/invalidation test suite (`TEST-043`, added 2026-07-16, DEC-147 — this field previously named no specific `TEST-###`, and `VG-018`'s own citation had drifted to the wrong test entirely, see `12-verification.md`)
 
 ### TASK-026: Legal-Hold Cache Invalidation (Both Layers)
 
@@ -932,10 +992,12 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 
 **Phase**: Phase 5
 **Verification Pattern**: TDD
-**Related Requirements**: NFR-026, NFR-033 (added post-Stage-8, DEC-128), NFR-024 (added post-Stage-8, DEC-129)
+**Related Requirements**: NFR-026, NFR-033 (added post-Stage-8, DEC-128), NFR-024 (added post-Stage-8, DEC-129), NFR-008 (added 2026-07-16, DEC-147)
 **Owner Role**: Backend
 **Dependencies**: TASK-011
 **Team-path**: ~4 days | **Solo-path**: ~7 days
+
+**`NFR-008` ownership added 2026-07-16 (DEC-147, second cross-model review R.5)**: "no query/document content logged at INFO by default" had no task explicitly responsible for it. This task builds the logging/span emission this constraint governs, so its own TDD Green step must confirm INFO-level spans/logs carry only ids, status, latency, and sizes — never raw query or document text.
 
 #### TDD Red
 - Test: a query's trace shows the full span tree from `08-observability-logs.md`'s Span Structure, with all required GenAI attributes (NFR-026) present
@@ -1054,7 +1116,7 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 
 **Phase**: Phase 6
 **Verification Pattern**: TDD-Exempt — Infrastructure-as-Code
-**Related Requirements**: REQ-011, DEC-067, DEC-117
+**Related Requirements**: REQ-011, NFR-019 (added 2026-07-16, DEC-147), DEC-067, DEC-117
 **Owner Role**: DevOps
 **Dependencies**: TASK-030
 **Team-path**: ~2 days | **Solo-path**: ~4 days
@@ -1064,15 +1126,18 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 
 #### Verification Plan
 - Fresh-rig `docker compose up` timed to `/ready: true` (full-dependency check); confirm ≤30 min including offline model bundle transfer
+- **(Added 2026-07-16, DEC-147, second cross-model review R.5)** Bundle build script run produces a single tarball + SHA-256 manifest per NFR-019; a deliberately corrupted weight file is confirmed caught by manifest verification before activation — this task previously only timed an install *against* an assumed-good bundle, never verified the bundle-build/verify mechanism itself, which NFR-019's own acceptance criteria require
 
 #### Rollback Plan
 **(Added 2026-07-06, Stage 8 audit finding, Gate 7)** If the timed install fails or exceeds 30 minutes, roll back to the prior release's install artifact (docker-compose file + offline model bundle) known to meet the target, and treat the regression as a release blocker (per `12-verification.md`'s VG-011) until the root cause (e.g. bundle size growth, a newly slow-starting service) is fixed.
 
 #### Acceptance Criteria
 - [ ] Cold-start to `/ready: true` measured at ≤30 min on reference hardware
+- [ ] **(Added 2026-07-16, DEC-147)** Bundle build script produces a tarball + manifest matching NFR-019's exact shape; a corrupted-weight test case is rejected by manifest verification before activation, not silently accepted
 
 #### Verification Evidence
 - Timed installation log, per `09-deployment-ops.md`'s "Runbook: First Customer Install"
+- **(Added 2026-07-16, DEC-147)** Bundle-build script output (tarball + manifest) and the corrupted-weight rejection test's result
 
 ### TASK-032: Hardware Validation Rig Run (Closes RC-T3-01's Measurement Step)
 
@@ -1097,6 +1162,33 @@ This is a scheduled batch job (a reindex-adjacent data-consistency job, the same
 
 #### Verification Evidence
 - Validation-run results table (appended to `09-deployment-ops.md`)
+
+### TASK-041: End-to-End Query Latency Validation (Closes NFR-005's Build-Plan Gap)
+
+**Phase**: Phase 6
+**Verification Pattern**: TDD-Exempt — Infrastructure/Performance validation
+**Related Requirements**: NFR-005
+**Owner Role**: Backend/DevOps
+**Dependencies**: TASK-011, TASK-012, TASK-014, TASK-025, TASK-032
+**Team-path**: ~2 days | **Solo-path**: ~3 days
+
+**Added 2026-07-16 (second cross-model review R.5, NFR→TASK sweep)**: NFR-005 (query latency p95 ≤ 8s, with cold/warm-cache concurrency targets) has an existing test (`TEST-032`) but no build-plan task responsible for building/validating it — an emergent, whole-pipeline property with no single component task that naturally owns it, the same reason `TASK-031`/`TASK-032` exist as dedicated Phase 6 validation tasks rather than being folded into whichever task happens to touch install time or VRAM. Depends on every task that contributes a per-line-item budget to `04-architecture.md` §7B.12/§9.4 (retrieval, rerank/generate, and the warm-cache path `TASK-025` builds), plus `TASK-032`'s own VRAM measurement, since headroom affects concurrency ceiling.
+
+#### Why TDD-Exempt
+Measuring end-to-end query latency against a real running pipeline at 1/2/5/8 concurrent users is a real-hardware timed measurement, not a unit-testable red→green code path — matches `TASK-031`/`TASK-032`'s own "Why TDD-Exempt" reasoning exactly.
+
+#### Verification Plan
+- Execute `TEST-032`'s scenario against the fully-integrated pipeline at floor-tier hardware: measure p95 latency at 1/2/5/8 concurrent users with a cache-priming sweep; confirm cold-cache floor (≥2 in-flight) and warm-cache target (5-8 in-flight at ≥60% hit ratio) both hold per NFR-005's own stated targets
+
+#### Rollback Plan
+N/A in the data-mutation sense, matching `TASK-032`'s own framing — this task only records measurements. If the measured p95 exceeds 8s at a concurrency level NFR-005 requires, the "rollback" is flagging the gap back to whichever per-line-item budget in `04-architecture.md` §7B.12 turns out to be the actual bottleneck, not a rollback of running configuration.
+
+#### Acceptance Criteria
+- [ ] p95 ≤ 8s measured at 1/2/5/8 concurrent users within the documented cold/warm-cache regime, on real floor-tier hardware
+- [ ] Any measured deviation beyond NFR-005's stated targets is flagged back to the specific per-line-item budget responsible, not left as an unexplained aggregate miss
+
+#### Verification Evidence
+- `TEST-032`'s measured output, run against real hardware (not a fake-backed proxy — this is exactly the kind of measurement `specs/13-decision-log.md` DEC-135's Tier-3 `[manual-verify]` bucket exists for)
 
 ### TASK-039: Restart-Durability Verification (Closes NFR-007)
 
