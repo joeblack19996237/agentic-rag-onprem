@@ -108,6 +108,12 @@ class DocumentUpdate:
     authority_state: str | None = None
 
 
+# `audit/event_store.py` has a byte-for-byte identical copy of both
+# encode_cursor/decode_cursor below -- deliberately not shared (this
+# module's own docstring), but unlike `_paginate` (genuinely different
+# column names/return types per store) these two have zero domain-specific
+# variation, so a future format change (peer review, 2026-07-16) must be
+# applied in both places or the two stores' cursors silently diverge.
 def encode_cursor(*, last_seen_timestamp: datetime, last_seen_id: uuid.UUID) -> str:
     payload = json.dumps(
         {"last_seen_timestamp": last_seen_timestamp.isoformat(), "last_seen_id": str(last_seen_id)}
@@ -117,7 +123,9 @@ def encode_cursor(*, last_seen_timestamp: datetime, last_seen_id: uuid.UUID) -> 
 
 def decode_cursor(cursor: str) -> tuple[datetime, uuid.UUID]:
     """Raises `ValueError` for any malformed cursor -- callers at the HTTP
-    boundary must treat this as a client error (`400`), not a `500`."""
+    boundary must treat this as a client error (`400`), not a `500`. Keep in
+    sync with `audit/event_store.py`'s identical copy -- see the
+    module-level comment above `encode_cursor`."""
     try:
         payload = json.loads(base64.urlsafe_b64decode(cursor.encode("ascii")))
         return (
@@ -214,7 +222,11 @@ def _paginate(rows: Sequence[_Row], limit: int) -> tuple[list[_Row], str | None]
     here since only `len(rows) > limit` and a slice are needed), returns
     the trimmed page plus `next_cursor` (`None` on the last page). Shared
     by both stores so their pagination boundary can't drift out of sync
-    (Standards-axis code review, 2026-07-16, on the pre-shared duplicate)."""
+    (Standards-axis code review, 2026-07-16, on the pre-shared duplicate).
+    `audit/event_store.py` has an analogous, deliberately *not* shared
+    `_paginate` (different column names, different return type -- see that
+    module's own docstring on why this one specifically isn't cross-file
+    shared, unlike `encode_cursor`/`decode_cursor` above)."""
     has_more = len(rows) > limit
     page_rows = list(rows[:limit])
     next_cursor = None

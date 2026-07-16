@@ -13,7 +13,12 @@ needed a live Postgres to prove `job_queue` read/write logic.
 not literally shared code. Per this issue's own risk-review: two fakes
 (`FakeDocumentStore`, `FakeAuditEventStore`) isn't yet a pattern worth
 abstracting into one generic pagination helper -- a third paginated admin
-list would be the trigger, not this issue.
+list would be the trigger, not this issue. **Narrower callout (peer review,
+2026-07-16)**: `_paginate`'s per-domain differences (column names, return
+type) justify staying separate, but `encode_cursor`/`decode_cursor` below
+are byte-for-byte identical to `admin/document_store.py`'s copy -- keep
+both in sync if the cursor format ever changes; see the comment directly
+above `encode_cursor` there.
 
 **`from`/`to` are required** (`06-api-contracts.md`'s API-A-03 row has no
 `?` on them, unlike `user_id?`/`cursor?`/`limit?`) -- enforced at the route
@@ -39,6 +44,9 @@ DEFAULT_LIMIT = 50
 MAX_LIMIT = 200
 
 
+# Byte-for-byte identical to admin/document_store.py's encode_cursor/
+# decode_cursor -- see this module's own docstring for why they're not
+# shared. Keep both copies in sync if the cursor format ever changes.
 def encode_cursor(*, last_seen_timestamp: datetime, last_seen_id: uuid.UUID) -> str:
     payload = json.dumps(
         {"last_seen_timestamp": last_seen_timestamp.isoformat(), "last_seen_id": str(last_seen_id)}

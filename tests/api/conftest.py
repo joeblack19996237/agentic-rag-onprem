@@ -10,7 +10,7 @@ module identity)."""
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from unittest.mock import MagicMock
 
 import pytest
@@ -18,7 +18,12 @@ from fastapi.testclient import TestClient
 from qdrant_client import QdrantClient
 
 from acl.ingest_stub import FakeACLLookup
-from api.ingest_routes import get_pipeline_dependencies, get_session, get_task_scheduler
+from api.ingest_routes import (
+    get_background_pipeline_deps_factory,
+    get_pipeline_dependencies,
+    get_session,
+    get_task_scheduler,
+)
 from api.main import app
 from ingest.embedding import FakeEmbeddingClient
 from ingest.job_store import InMemoryJobStore
@@ -65,11 +70,32 @@ def fake_scheduler() -> FakeTaskScheduler:
 
 
 @pytest.fixture
+def fake_background_pipeline_deps_factory(
+    fake_pipeline_deps: PipelineDependencies,
+) -> Callable[[], tuple[PipelineDependencies, MagicMock]]:
+    """Fakes `get_background_pipeline_deps_factory`'s return value: a
+    zero-arg callable, not a `PipelineDependencies` itself (see the real
+    dependency's own docstring on why the background task needs its own
+    session). Reuses `fake_pipeline_deps` -- none of the route-level tests
+    using the plain `ingest_client` fixture actually invoke the background
+    closure (they all schedule via `fake_scheduler`, which records without
+    running it), so this only needs to make dependency *resolution* safe.
+    `test_ingest_routes.py`'s own dedicated session-independence test builds
+    its own factory instead, to actually observe per-call behavior."""
+
+    def _build() -> tuple[PipelineDependencies, MagicMock]:
+        return fake_pipeline_deps, MagicMock()
+
+    return _build
+
+
+@pytest.fixture
 def ingest_client(
     client: TestClient,
     fake_pipeline_deps: PipelineDependencies,
     fake_scheduler: FakeTaskScheduler,
     mock_session: MagicMock,
+    fake_background_pipeline_deps_factory: Callable[[], tuple[PipelineDependencies, MagicMock]],
 ) -> Iterator[TestClient]:
     """`client` plus the ingest-route-specific dependency overrides. Cleans
     up `app.dependency_overrides` afterward so nothing leaks into a test
@@ -77,9 +103,13 @@ def ingest_client(
     app.dependency_overrides[get_pipeline_dependencies] = lambda: fake_pipeline_deps
     app.dependency_overrides[get_task_scheduler] = lambda: fake_scheduler
     app.dependency_overrides[get_session] = lambda: mock_session
+    app.dependency_overrides[get_background_pipeline_deps_factory] = (
+        lambda: fake_background_pipeline_deps_factory
+    )
     try:
         yield client
     finally:
         app.dependency_overrides.pop(get_pipeline_dependencies, None)
         app.dependency_overrides.pop(get_task_scheduler, None)
         app.dependency_overrides.pop(get_session, None)
+        app.dependency_overrides.pop(get_background_pipeline_deps_factory, None)
