@@ -74,9 +74,12 @@ cli eval run --suite golden
 cli eval run --suite golden --threshold-set mvp
 cli eval run --suite golden --json > report.json
 cli eval compare a.json b.json
+cli eval promote --from-traces <timerange>
 ```
 
 Output: per-metric pass/fail, per-question detail, failed-question list with NLI scores, citation reports. Owner: user runs manually pre-demo (DEC-027).
+
+**`cli eval promote` added to this list 2026-07-16 (DEC-147, second cross-model review R.17)** — already referenced and specified in `08-observability-logs.md`'s Trace-to-Regression Promotion section (samples and reviews recent production traces onto the golden set; the manual fallback for installs without a scheduled LCC-engagement cadence) since that section was written, but never listed here alongside the rest of the `cli eval` family. Same command, no behavior change — this closes a cross-reference gap, not a new capability.
 
 **Judge-model lifecycle (DEC-130)**: `cli eval run` loads `Qwen2.5-14B-Instruct` int4 GGUF into host RAM (CPU inference via `llama.cpp`) for the duration of the run and releases it on completion — it is not a resident process between runs. This keeps the RAGAS judge fully off the query-serving GPU (§4.2.2's warm-cache headroom stays untouched by eval runs) at the cost of CPU-inference latency, which is acceptable because no run in the table above (weekly regression, pre-demo gate, CI, Stage 8 audit acceptance) is on a query-latency SLO.
 
@@ -202,7 +205,7 @@ When a customer corpus drives refusal rate above ~30% on first install — a for
 | Should refusal thresholds be admin-tunable (NFR-010) at all, or should we own them? | T4 + T8 |
 | Is the prompt-injection defense (structural delimiters + server-reconstructed history) sufficient under known 2026 attack patterns? | T4 |
 
-Answered in Stage 5 architecture review memos.
+**Corrected 2026-07-16 (DEC-147, second cross-model review R.12)** — "Answered in Stage 5 architecture review memos" was a one-line forward-reference with no way for a reader to find which answer applies to which question. The real pointer: `92-stage5-review-memos.md`'s "Stage 5 topic coverage matrix (T1-T8)" (its own dedicated summary section) resolves each — T1 (CCM-specific threshold defensibility) closed per that matrix's T1 row, with the one still-open item being F6's competitor-verification claims, itself already cross-referenced at `01-product-brief.md` §2.1; T4 (prompt-injection defense sufficiency) closed per the T4 row (DEC-082 layered rails, DEC-096/097 retrieval-rail scan); T6 (NLI threshold, refusal-rate open question, reframed 2026-07-13 by that same cross-model review's own R.5) closed per the T6 row; T8 (admin-tunable refusal thresholds) closed per the T8 row. None of these are unresolved — the memo's own dismissal just didn't say where to look.
 
 ## 9. Cross-references
 

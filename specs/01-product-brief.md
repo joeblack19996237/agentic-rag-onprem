@@ -29,6 +29,8 @@ CCM and ECM vendors who want to ship a "private AI assistant" feature to their e
 
 Stage 5 review (`92-stage5-review-memos.md` D2-01) flagged that the "empty quadrant" framing from earlier drafts was weakly supported and that the realistic 2026 competitive map is more crowded. Direct comparisons:
 
+**`[unconfirmed exact state]` (added 2026-07-16, DEC-147, second cross-model review R.7/R.9)**: the specific competitor claims below were flagged `[unconfirmed]` by Stage 5 Round 4 (2026-07-03) and the user declined a dedicated verification task — this hedge exists elsewhere in this same file (`RISK-020`'s own `[unconfirmed exact state]` tag, §10) but was missing here at the table a reader would actually encounter first; added directly at the point of use rather than left to be found only by cross-reading the risk register, matching the AU Privacy Act row's own `[unconfirmed exact 2026 status]` precedent two sections up.
+
 | Cloud-vendor alternative | Why a customer might still choose GroundedDocs |
 |---|---|
 | Microsoft Copilot + Graph Connectors | Requires the customer to be inside M365 + Microsoft tenancy; cannot serve Documentum / OpenText / M-Files / Hyland customers without bringing the documents into Microsoft's index; LLM is closed-weight Azure OpenAI; air-gap not viable |

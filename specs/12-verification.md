@@ -48,6 +48,16 @@ This is the "are we actually done" checklist. Every gate below has a testable pa
 | VG-036 | NFR-007 (restart-durability, DEC-129) | TASK-039 output | Previously-ingested document and previously-written `audit_events` row both intact and unchanged after `docker compose down && docker compose up` | DevOps |
 | VG-037 | NFR-022 (per-rail latency budget, added 2026-07-16, DEC-147) | TEST-041 output | `safety_input` p95 ≤ 150ms; `safety_output` p95 ≤ 250ms; `policy/` additive overhead p95 ≤ 30ms, each measured via its own OTEL GenAI span | AI |
 | VG-038 | REQ-010/NFR-009 (admin-scope JWT claims, TASK-040, added 2026-07-16, DEC-147) | TEST-042 output | A validly-signed, insufficiently-scoped JWT returns `403` on every admin-surface route; a correctly-scoped JWT and the admin API key both continue to work with no regression | Backend |
+| VG-039 | DEC-065 (`chunk_id` determinism, added 2026-07-16, DEC-147) | TEST-004 | A fixed `(document_id, version_id, sequence)` tuple always produces the same `chunk_id`, confirmed across a re-run, not just a single computation | Backend |
+| VG-040 | NFR-016 (ECM PDP circuit breaker, added 2026-07-16, DEC-147) | TEST-008 | Breaker opens under simulated 1s+ PDP latency; queries return `verification_unavailable`, never a silent skip; `pdp_breaker_state` observable | Backend |
+| VG-041 | DEC-114 (compound-document ACL resolution, added 2026-07-16, DEC-147) | TEST-018 | `get_effective_acl(leaf_doc_id)` on a compound/virtual document correctly resolves to the root-node ACL, not empty/default | Backend |
+| VG-042 | DEC-113 (`security_label`-only ACL propagation, added 2026-07-16, DEC-147) | TEST-019 | A `security_label`-only change fires `acl_changed` and refreshes `chunks.security_label`; `allow_principals[]`/`deny_principals[]` unchanged | Backend |
+| VG-043 | NFR-017 (rate limiting, TASK-042, added 2026-07-16, DEC-147) | TEST-028 | 100 QPS to a single token produces `429` responses with `Retry-After`; abuse alert emitted; a token under the limit is unaffected | Backend |
+| VG-044 | `22-memory-context.md` (server-reconstructed history, added 2026-07-16, DEC-147) | TEST-030 | A fabricated client-supplied `history` field has zero influence on the actual assembled prompt (verified by inspecting the prompt itself, not just the response) | Backend/AI |
+| VG-045 | NFR-006 (ingest throughput, TASK-009, added 2026-07-16, DEC-147) | TEST-033 | ≥ 100 pages/minute ingest throughput on reference hardware | Backend |
+| VG-046 | NFR-027 (TEI rerank latency, added 2026-07-16, DEC-147) | TEST-034 | p95 ≤ 100ms at top-K=50, ONNX Runtime backend | Backend |
+
+**`VG-039`..`VG-046` added 2026-07-16 (second cross-model review R.15)**: 8 of the review's 12 named orphaned tests had no gate mechanism at all (neither a `VG-###` row nor a Release Gates entry) — closed above. The other 3 (`TEST-015`, `TEST-016`, `TEST-017`) are **not** newly gated here — they were already release-blocking via the Release Gates table below (`DEC-092`'s and `DEC-109`'s rows), just not cross-referenced by `TEST-###` id, which the Release Gates table itself now states explicitly. Not a gap in gate *coverage*, only in this file's own internal cross-referencing.
 
 **`VG-037`/`VG-038` added 2026-07-16 (second cross-model review R.3)**: `TEST-041` (per-rail latency, added 2026-07-13 review R.17) had existed in `11-test-plan.md` since that review but was never given a verification gate here — an orphaned test with no release-gate consequence. `TASK-040` (admin-scope JWT claims, added same day as this fix) had neither a `TEST-###` nor a `VG-###` at all — `11-test-plan.md` gains `TEST-042` alongside this row.
 
@@ -78,8 +88,8 @@ Matches the actual MVP demo scenario stated in `confirmed-context.md` §6 ("a wo
 | All VG-### rows above pass | Every gate's evidence collected and reviewed | Yes — no release without full VG-### pass |
 | Air-gap test 100% pass | VG-012 | Yes |
 | No Critical-severity observability alert active | Per `08-observability-logs.md`'s Alerts table | Yes |
-| DEC-092 safety-rail accuracy-preservation check on file | Before any safety-rail quantization/adapter ships as default | Yes, specifically for that class of change |
-| DEC-109 quality gate satisfied | Before any generation/embedding-model swap ships as default | Yes, specifically for that class of change |
+| DEC-092 safety-rail accuracy-preservation check on file | Before any safety-rail quantization/adapter ships as default (evidence: `TEST-015`'s documented F1/recall comparison — cross-referenced here 2026-07-16, DEC-147, second cross-model review R.15; this row was always the release-blocking mechanism for `TEST-015`, just not previously cited by test id) | Yes, specifically for that class of change |
+| DEC-109 quality gate satisfied | Before any generation/embedding-model swap ships as default (evidence: `TEST-016`'s embedding blue/green check, `TEST-017`'s generation-model swap check — cross-referenced here 2026-07-16, DEC-147, same review) | Yes, specifically for that class of change |
 | Golden-set full ring passes DEC-017 thresholds | Per `10-build-plan.md` TASK-029 | Yes |
 | Hardware-validation rig run recorded | TASK-032, updates `09-deployment-ops.md`'s measured-VRAM table | Recommended before first customer install, not a hard release blocker for an internal/demo-only release |
 
