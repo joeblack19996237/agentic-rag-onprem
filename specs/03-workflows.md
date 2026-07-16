@@ -152,7 +152,7 @@ flowchart TD
 
 ### Permission and Role Paths
 
-Admin API key (or admin-scoped JWT) required on every endpoint in this surface (NFR-009); no anonymous admin access.
+Admin API key (or admin-scoped JWT) required on every endpoint in this surface (NFR-009); no anonymous admin access. **Admin-scoped JWT claim enforcement is not yet shipped** — see `06-api-contracts.md`'s Authentication section, DEC-145, `TASK-040`.
 
 ## Workflow 4 — ECM CDC Sync
 

@@ -72,7 +72,7 @@ Consolidated cross-reference, not restated in full:
 ## Access Control
 
 - End-user access: JWT bearer, scoped per-query, re-verified per-query via Layer 2 JIT (not a standing session grant that outlives its TTL windows — `41-integration-contracts.md`'s ACL cache TTL table: 60s user, 30s document)
-- Admin access: admin API key or admin-scoped JWT, required on every `06-api-contracts.md` Admin-surface endpoint
+- Admin access: admin API key or admin-scoped JWT, required on every `06-api-contracts.md` Admin-surface endpoint. **Tracked gap (DEC-145, `RISK-023`)**: the shipped `api-surface` (`TASK-033`) implementation verifies JWT signature only — the "admin-scoped" claim check is not yet implemented, so any correctly-signed JWT currently passes on admin endpoints too. Currently inert (no end-user JWT issuance path exists yet in this codebase), but not gated by this project's own build-plan sequencing — the exposure window opens the moment any real vendor integration mints end-user JWTs. `TASK-040` closes it; this is an explicit precondition for any real (non-demo) deployment, not a theoretical future concern
 - No role beyond "end user" and "admin" exists in MVP — RBAC depth (reviewer role, per-category routing) is V2 (REQ-016)
 
 ## Secrets

@@ -1099,6 +1099,34 @@ N/A — this is a verification-only task with no persistent configuration change
 #### Verification Evidence
 - Before/after data-integrity comparison log (`docker compose down && docker compose up`, NFR-007, VG-036)
 
+### TASK-040: Admin-Scope JWT Claims Verification (Closes DEC-145's Known Gap)
+
+**Phase**: Phase 2
+**Verification Pattern**: TDD
+**Related Requirements**: REQ-010, NFR-009
+**Owner Role**: Backend
+**Dependencies**: TASK-033
+**Team-path**: ~2 days | **Solo-path**: ~3 days
+
+**Added 2026-07-16 (DEC-145, `api-surface`/TASK-033 code review follow-up, `RISK-023`)**: TASK-033 implemented JWT signature verification (`api/auth.py`) but never added scope/role claim enforcement — `06-api-contracts.md`'s admin-surface rows document JWT bearer "(admin scope)" and `403` for an insufficiently-scoped token, neither of which the shipped code checks; any correctly-signed JWT is currently accepted on every admin route regardless of claims. Not folded into TASK-033 itself because no end-user JWT issuance path existed yet at TASK-033's implementation time (2026-07-15/16) to design the claim shape against — see DEC-145 for the full gap history and why this is tracked as a separate, explicit task rather than left as an unresolved code comment. Explicit precondition for any real (non-demo, non-internal-test) deployment, per `RISK-023`.
+
+#### TDD Red
+- Test: a validly-signed JWT lacking the required admin scope/role claim is rejected with `403` (not `401` — the token itself is valid, only insufficiently privileged) on every admin-surface route (`POST /v1/ingest`, `GET /v1/ingest/{document_id}`, `GET`/`PUT /v1/admin/documents`, `GET /v1/admin/audit`, `GET /v1/admin/config/models`, and every other `06-api-contracts.md` Admin-surface row as its own route ships)
+
+#### TDD Green
+- Extend `api/auth.py`'s `AuthContext`/`require_auth` with a scope/role claim check — claim name and accepted value(s) are this task's own design decision, not pinned here (no spec anywhere defines a JWT claim schema for this today); the admin API key path is unaffected — it has no claims to check and already implies admin intent by construction, matching `api/auth.py`'s own existing docstring framing ("a flat, config-driven alternative to JWT on admin-scoped routes")
+
+#### TDD Refactor
+- Confirm every admin-surface route shipped by `api-surface` Issues 02-04 (`api/ingest_routes.py`, `api/admin_routes.py`, `api/audit_routes.py`, `api/config_routes.py`) picks up the new check with no route-by-route special-casing — the check belongs in `require_auth`'s shared dependency, not duplicated per route
+
+#### Acceptance Criteria
+- [ ] A validly-signed, insufficiently-scoped JWT returns `403` (not `401`, not `200`) on every currently-shipped admin-surface route
+- [ ] A validly-signed, correctly-scoped JWT and the admin API key both continue to work exactly as before (no regression against the already-passing `api-surface` Issues 01-04 test suites)
+- [ ] `06-api-contracts.md`'s documented `403` (insufficient scope) becomes reachable for the first time — confirmed by an actual `403` response in a test, not just a route's `responses={}` declaration
+
+#### Verification Evidence
+- Scope-enforcement test suite covering every admin-surface route, plus a full regression run of `api-surface`'s existing suite
+
 ## Definition of Done (MVP)
 
 - [ ] Every REQ-### tagged MVP in `02-requirements.md` has at least one TASK-### above tracing to it
@@ -1120,4 +1148,4 @@ N/A — this is a verification-only task with no persistent configuration change
 
 ## Decision References
 
-DEC-012, DEC-021, DEC-033, DEC-034, DEC-035, DEC-036, DEC-038, DEC-042, DEC-046, DEC-051, DEC-056, DEC-059, DEC-060, DEC-063, DEC-065, DEC-067, DEC-068, DEC-075, DEC-076, DEC-077, DEC-078, DEC-080, DEC-081, DEC-082, DEC-086, DEC-087, DEC-088, DEC-089, DEC-091, DEC-092, DEC-093, DEC-096, DEC-102, DEC-105, DEC-106, DEC-109, DEC-116, DEC-117, DEC-127, DEC-128, DEC-129, DEC-131, DEC-133, DEC-134, DEC-143
+DEC-012, DEC-021, DEC-033, DEC-034, DEC-035, DEC-036, DEC-038, DEC-042, DEC-046, DEC-051, DEC-056, DEC-059, DEC-060, DEC-063, DEC-065, DEC-067, DEC-068, DEC-075, DEC-076, DEC-077, DEC-078, DEC-080, DEC-081, DEC-082, DEC-086, DEC-087, DEC-088, DEC-089, DEC-091, DEC-092, DEC-093, DEC-096, DEC-102, DEC-105, DEC-106, DEC-109, DEC-116, DEC-117, DEC-127, DEC-128, DEC-129, DEC-131, DEC-133, DEC-134, DEC-143, DEC-144, DEC-145

@@ -75,7 +75,7 @@ Note: `audit_events.citations → chunks` is drawn as a reference, not a foreign
 | Field | Type (semantic) | Required | Description | Source decision |
 |---|---|---|---|---|
 | `document_id` | UUID | Yes | Stable identity; equals the ECM's own document identifier when sourced from an ECM adapter, or a generated UUID for `LocalAdapter`/no-ECM installs | §7B.3 |
-| `repository_id` | String | Yes | Which ECM repository/instance this document came from (supports multi-repository ECM installs) | §7B.3 |
+| `repository_id` | String | Yes | Which ECM repository/instance this document came from (supports multi-repository ECM installs). Also serves as Qdrant's `corpus_id` for collection naming (DEC-144) — a repository is this schema's natural corpus boundary, no separate corpus-grouping concept exists | §7B.3, DEC-144 |
 | `parent_document_id` | UUID, nullable | No | Compound/virtual document hierarchy (Documentum virtual documents, OpenText compound documents). MVP indexes leaves only; this field records the parent for future V2 root-aggregated retrieval | §6, §7B.9, DEC-114 |
 | `owner_user_id` | UUID, nullable | No | Reserved for V2 access-request workflow (REQ-006c); null-allowed in MVP, no functional use yet | DEC-044 |
 | `approver_user_ids` | Array\<UUID\>, nullable | No | Reserved for V2 access-request workflow (REQ-006c) | DEC-044 |
