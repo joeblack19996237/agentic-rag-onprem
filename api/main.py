@@ -13,12 +13,14 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from api.admin_routes import router as admin_router
 from api.auth import AuthContext, AuthenticationError, load_jwks_bundle, require_auth
 from api.ingest_routes import router as ingest_router
 from api.schemas import ErrorResponse, error_response
 
 app = FastAPI()
 app.include_router(ingest_router)
+app.include_router(admin_router)
 
 # Static, pre-imported JWKS bundle (DEC-062, air-gap) -- no live JWKS
 # endpoint fetch. Unset in an environment with no bundle configured, which

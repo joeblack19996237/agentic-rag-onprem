@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: ready-for-human
 
 # Issue 03: Admin Document Management
 
@@ -23,18 +23,24 @@ None — traces directly to `specs/10-build-plan.md` TASK-033. No PRD (see Issue
 
 ## Acceptance criteria
 
-- [ ] `GET /v1/admin/documents` returns a cursor-paginated list against a mocked `Session` (Tier A) with a real compiled query asserted — including the `ORDER BY created_at DESC, document_id DESC` clause; `next_cursor` is `null` on the last page
+- [x] `GET /v1/admin/documents` returns a cursor-paginated list against a mocked `Session` (Tier A) with a real compiled query asserted — including the `ORDER BY created_at DESC, document_id DESC` clause; `next_cursor` is `null` on the last page
       Verification: `pytest tests/admin/test_documents.py -k lists_paginated -v`
-- [ ] Cursor pagination correctly excludes/includes rows when new rows are inserted between two simulated page fetches, using the `FakeDocumentStore` (Tier B), deterministically ordered by `(created_at, document_id)` descending — no record skipped or duplicated across the simulated pages
+      **Done (2026-07-16)**: `admin/document_store.py`'s `SqlAlchemyDocumentStore.list_documents` builds a Core-style `select(Document).order_by(...).limit(limit + 1)`, peeking one extra row to decide `next_cursor`. Mutation-tested: flipping `created_at.desc()` to `.asc()` is caught by the ORDER BY substring assertion.
+- [x] Cursor pagination correctly excludes/includes rows when new rows are inserted between two simulated page fetches, using the `FakeDocumentStore` (Tier B), deterministically ordered by `(created_at, document_id)` descending — no record skipped or duplicated across the simulated pages
       Verification: `pytest tests/admin/test_documents.py -k pagination_correct_under_interleaved_insert -v`
-- [ ] `PUT /v1/admin/documents/{document_id}` with `{lifecycle_state: "deleted"}` issues an `UPDATE` (Tier A), not a `DELETE` — the row is never removed. **Strengthened during risk review**: assert on the compiled statement's actual `WHERE` clause (targets the requested `document_id`) and `SET`/values (`lifecycle_state` is actually `"deleted"`), not merely that `update()` rather than `delete()` was called — a mock could pass a weaker check while updating the wrong row or the wrong value.
+      **Done (2026-07-16)**: 5 seeded docs, paged 2-at-a-time; a new newest-sorting row is seeded between page 1 and page 2's fetch. Mutation-tested: changing the cursor filter from `<` to `<=` duplicates a row into page 2, caught.
+- [x] `PUT /v1/admin/documents/{document_id}` with `{lifecycle_state: "deleted"}` issues an `UPDATE` (Tier A), not a `DELETE` — the row is never removed. **Strengthened during risk review**: assert on the compiled statement's actual `WHERE` clause (targets the requested `document_id`) and `SET`/values (`lifecycle_state` is actually `"deleted"`), not merely that `update()` rather than `delete()` was called — a mock could pass a weaker check while updating the wrong row or the wrong value.
       Verification: `pytest tests/admin/test_documents.py -k soft_delete_issues_update_not_delete -v`
-- [ ] `PUT /v1/admin/documents/{document_id}` with an `acl` payload updates `allow_principals`/`deny_principals`, observable on a subsequent `GET` — using the `FakeDocumentStore` (Tier B): seed a document, `PUT` an ACL change, `GET` the same document from the same store instance, assert the change is visible. A bare `MagicMock` Session (Tier A's pattern) cannot satisfy this AC — it carries no state between calls.
+      **Done (2026-07-16)**: asserts `.compile().params["lifecycle_state"] == "deleted"` and `params["document_id_1"] == doc.document_id`, not just `update()` vs `delete()`. Mutation-tested: hardcoding the SET value to `"active"` is caught by the params assertion even though the route's *returned* `lifecycle_state` still looked correct (it's read from the request, not the persisted row) — confirms the params check does real work the return-value check alone would miss.
+- [x] `PUT /v1/admin/documents/{document_id}` with an `acl` payload updates `allow_principals`/`deny_principals`, observable on a subsequent `GET` — using the `FakeDocumentStore` (Tier B): seed a document, `PUT` an ACL change, `GET` the same document from the same store instance, assert the change is visible. A bare `MagicMock` Session (Tier A's pattern) cannot satisfy this AC — it carries no state between calls.
       Verification: `pytest tests/admin/test_documents.py -k acl_edit_persists -v`
-- [ ] `PUT /v1/admin/documents/{document_id}` for an unknown id returns `404 not_found` — Tier A (mocked `Session`), configured so the query resolves to no row (e.g. `scalar_one_or_none()` returns `None`), not an exception
+      **Done (2026-07-16)**: seeds via `FakeDocumentStore.seed()` (no admin "create" route exists to drive this through HTTP), `update_document()`, then a *separate* `get_document()` call proves persistence, not just the mutating call's own return value. `security_label`/`retention_state` (untouched fields) asserted unchanged, confirming the merge is field-level, not a full overwrite.
+- [x] `PUT /v1/admin/documents/{document_id}` for an unknown id returns `404 not_found` — Tier A (mocked `Session`), configured so the query resolves to no row (e.g. `scalar_one_or_none()` returns `None`), not an exception
       Verification: `pytest tests/admin/test_documents.py -k unknown_id_returns_404 -v`
-- [ ] Both routes accept **either** a valid JWT **or** a valid admin API key (tested independently), and reject an invalid/missing credential with `401` — reusing Issue 01's middleware
+      **Done (2026-07-16)**: store-level (`DocumentNotFoundError` raised, only the existence-check `SELECT` ran — asserted via `session.execute.call_count == 1`, no `UPDATE` ever attempted) and route-level (`404`/`not_found` over HTTP) both covered.
+- [x] Both routes accept **either** a valid JWT **or** a valid admin API key (tested independently), and reject an invalid/missing credential with `401` — reusing Issue 01's middleware
       Verification: `pytest tests/admin/test_documents.py -k requires_auth -v` (parametrized over both credential types plus the missing/invalid case)
+      **Done (2026-07-16)**: 8 tests, the full {missing, invalid admin key, valid admin key, valid JWT} × {`GET`, `PUT`} matrix. Mutation-tested: removing `Depends(require_auth)` from `list_documents` is caught (200 where 401 was expected).
 
 ## Manual verification
 

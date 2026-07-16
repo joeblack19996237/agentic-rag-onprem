@@ -5,6 +5,35 @@
 # including CI (which invokes bare `pytest`).
 pythonpath = ["."]
 
+[tool.mypy]
+# tests/_shared_auth_fixtures.py is reached two ways: mypy's own recursive
+# `mypy .` directory walk (naming it bare `_shared_auth_fixtures`, since
+# neither tests/ nor tests/api/ has __init__.py — docs/testing.md's own
+# rule) and the dotted `from tests._shared_auth_fixtures import ...` each
+# conftest.py uses to share it without duplicating it (see that module's own
+# docstring for why it isn't named conftest.py). Both are correct on their
+# own, but together they give mypy two module identities for one file —
+# "Source file found twice under different module names", confirmed
+# empirically, 2026-07-16.
+#
+# A second, related collision: every conftest.py past the first one also
+# collides on bare basename alone ("Duplicate module named conftest"),
+# confirmed when tests/admin/conftest.py was added alongside the
+# already-existing tests/api/conftest.py — this will recur for every future
+# tests/<domain>/conftest.py. The general fix (`--namespace-packages` /
+# `--explicit-package-bases`) was tried and empirically breaks 4 existing,
+# unrelated check-style test modules' bare `from doc_drift import ...`-style
+# imports repo-wide (`docs/testing.md`'s own documented convention for those
+# modules) — too broad a blast radius to fix a fixture-sharing problem.
+# Excluding every conftest.py past the first from the directory-walk leaves
+# tests/api/conftest.py (the original) fully type-checked and accepts no
+# static coverage on later ones (ruff + pytest's own eager fixture
+# resolution remain their safety net) — a narrower, explained trade-off.
+exclude = [
+    "^tests/_shared_auth_fixtures\\.py$",
+    "^tests/(?!api/)[^/]+/conftest\\.py$",
+]
+
 [tool.ruff.lint]
 # Adds the mechanical rules docs/coding-standards.md defers to "the linter"
 # on top of ruff's defaults (E4/E7/E9/F) — extend-select, not select, so the
