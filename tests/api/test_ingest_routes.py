@@ -13,6 +13,7 @@ from collections.abc import Callable
 
 import pytest
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 
 from api.ingest_routes import ACLOverride
 from ingest.job_store import InMemoryJobStore
@@ -189,5 +190,8 @@ def test_requires_auth_get_accepts_jwt(
 
 
 def test_acl_override_shape_requires_security_label() -> None:
-    with pytest.raises(Exception):
+    # Narrowed from a bare `pytest.raises(Exception)` (test-audit, 2026-07-16)
+    # -- too broad to distinguish "correctly rejected as invalid" from "raised
+    # for an unrelated reason", the one occurrence of that pattern in this suite.
+    with pytest.raises(ValidationError):
         ACLOverride.model_validate({"allow_principals": ["x"]})

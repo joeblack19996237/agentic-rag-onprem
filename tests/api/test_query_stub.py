@@ -31,11 +31,25 @@ def test_query_stub_registered_in_openapi_schema() -> None:
 
 
 def test_query_stub_unauthenticated_request_is_401_not_404() -> None:
+    # Mutates shared `app.state` directly (the only way to exercise "no
+    # JWKS/admin key configured" -- `require_auth` reads `request.app.state`
+    # itself, not a `Depends()`-injected value `app.dependency_overrides`
+    # could swap). Restored in `finally` so this doesn't leak into whichever
+    # test happens to run next (test-audit, 2026-07-16) -- every other test
+    # in this suite goes through the `client` fixture, which happens to
+    # reset both values on every call, but this test doesn't use that
+    # fixture and shouldn't rely on a different test's setup to clean up
+    # after it.
+    previous_jwks = app.state.jwks
+    previous_admin_api_key = app.state.admin_api_key
     app.state.jwks = None
     app.state.admin_api_key = None
-    client = TestClient(app)
+    try:
+        client = TestClient(app)
+        response = client.post("/v1/query", json={"query": "hello"})
 
-    response = client.post("/v1/query", json={"query": "hello"})
-
-    assert response.status_code == 401
-    assert response.status_code != 404
+        assert response.status_code == 401
+        assert response.status_code != 404
+    finally:
+        app.state.jwks = previous_jwks
+        app.state.admin_api_key = previous_admin_api_key
