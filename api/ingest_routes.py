@@ -90,9 +90,9 @@ import json
 import logging
 import os
 import uuid
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from datetime import UTC, datetime
-from typing import Callable, Literal
+from typing import Literal, NamedTuple
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Form, UploadFile
 from pydantic import BaseModel, ValidationError
@@ -105,7 +105,7 @@ from api.schemas import ErrorResponse, error_response
 from db.base import get_engine, get_session_factory
 from ingest.embedding import HybridTEIEmbeddingClient, TEIDenseEmbeddingClient, TEISparseEmbeddingClient
 from ingest.identity import DocumentIdentity
-from ingest.job_store import JobPhase, SqlAlchemyJobStore
+from ingest.job_store import JobPhase, JobStore, SqlAlchemyJobStore
 from ingest.models import Document, DocumentVersion
 from ingest.parsing import SUPPORTED_EXTENSIONS
 from ingest.pipeline import PipelineDependencies, resume_ingest_job
@@ -182,9 +182,9 @@ def _map_phase_to_status(phase: JobPhase) -> ApiStatus:
 
 
 def get_session() -> Iterator[Session]:
-    """Real per-request Postgres session. Tests override
-    `get_pipeline_dependencies` wholesale instead of this -- no live
-    Postgres in this sandbox (`docs/agents/dev-environment.md`)."""
+    """Real per-request Postgres session. Tests override `get_job_store`/
+    `get_background_pipeline_deps_factory` wholesale instead of this -- no
+    live Postgres in this sandbox (`docs/agents/dev-environment.md`)."""
     factory = get_session_factory(get_engine())
     session = factory()
     try:
@@ -198,12 +198,23 @@ def get_task_scheduler(background_tasks: BackgroundTasks) -> TaskScheduler:
     return BackgroundTasksScheduler(background_tasks)
 
 
+def get_job_store(session: Session = Depends(get_session)) -> JobStore:
+    """Narrower than `get_pipeline_dependencies` -- both routes below only
+    ever touch `.job_store`, never the tokenizer/embedding/Qdrant clients
+    `PipelineDependencies` also bundles. Building those on every request,
+    including a bare `GET /v1/ingest/{document_id}` status poll, was real,
+    avoidable waste (`BgeM3Tokenizer()` alone makes a HuggingFace Hub call)
+    -- Spec-axis code review, 2026-07-16."""
+    return SqlAlchemyJobStore(session)
+
+
 def _build_pipeline_clients() -> tuple[BgeM3Tokenizer, HybridTEIEmbeddingClient, QdrantClient]:
-    """Session-independent pieces of `PipelineDependencies` -- shared by
-    `get_pipeline_dependencies` (request-scoped session) and
-    `get_background_pipeline_deps_factory` (a fresh session per call) so the
-    `TEI_*`/`QDRANT_URL` env-var check and client construction aren't
-    duplicated between them."""
+    """Session-independent pieces of `PipelineDependencies`, built once per
+    `get_background_pipeline_deps_factory` instantiation -- env-var driven
+    (matching `db/base.py`'s `DATABASE_URL` pattern). Not exercised by any
+    automated test in this sandbox -- round-tripping this against real
+    Postgres/Qdrant/TEI is `[manual-verify]`, same ceiling as every other
+    real-service integration in this codebase."""
     tei_dense_url = os.environ.get("TEI_DENSE_URL")
     tei_sparse_url = os.environ.get("TEI_SPARSE_URL")
     qdrant_url = os.environ.get("QDRANT_URL")
@@ -221,27 +232,19 @@ def _build_pipeline_clients() -> tuple[BgeM3Tokenizer, HybridTEIEmbeddingClient,
     )
 
 
-def get_pipeline_dependencies(session: Session = Depends(get_session)) -> PipelineDependencies:
-    """Real production wiring, env-var driven (matching `db/base.py`'s
-    `DATABASE_URL` pattern). Not exercised by any automated test in this
-    sandbox -- round-tripping this against real Postgres/Qdrant/TEI is
-    `[manual-verify]`, same ceiling as every other real-service integration
-    in this codebase. Binds to the *request's* session -- only safe for
-    synchronous, request-time use (e.g. `post_ingest`'s own `job_store.
-    create_job(...)` call); the background task uses
-    `get_background_pipeline_deps_factory` instead, see this module's own
-    docstring for why."""
-    tokenizer, embedding_client, qdrant_client = _build_pipeline_clients()
-    return PipelineDependencies(
-        tokenizer=tokenizer,
-        job_store=SqlAlchemyJobStore(session),
-        acl_lookup=SqlAlchemyACLLookup(session),
-        embedding_client=embedding_client,
-        qdrant_client=qdrant_client,
-    )
+class BackgroundPipelineDeps(NamedTuple):
+    """A `PipelineDependencies` paired with the session it's bound to, so a
+    caller can commit/close that exact session once the pipeline run is done
+    -- named fields instead of a positional tuple, since `deps`/`session`
+    travel together at every call site that uses
+    `get_background_pipeline_deps_factory` (Standards-axis code review,
+    2026-07-16)."""
+
+    deps: PipelineDependencies
+    session: Session
 
 
-def get_background_pipeline_deps_factory() -> Callable[[], tuple[PipelineDependencies, Session]]:
+def get_background_pipeline_deps_factory() -> Callable[[], BackgroundPipelineDeps]:
     """Returns a *factory*, not a `PipelineDependencies` itself. Each call to
     the returned callable opens a brand-new session (via `db/base.py`'s own
     `get_session_factory(get_engine())` pattern) and binds a fresh
@@ -254,7 +257,7 @@ def get_background_pipeline_deps_factory() -> Callable[[], tuple[PipelineDepende
     tokenizer, embedding_client, qdrant_client = _build_pipeline_clients()
     session_factory = get_session_factory(get_engine())
 
-    def _build() -> tuple[PipelineDependencies, Session]:
+    def _build() -> BackgroundPipelineDeps:
         session = session_factory()
         deps = PipelineDependencies(
             tokenizer=tokenizer,
@@ -263,7 +266,7 @@ def get_background_pipeline_deps_factory() -> Callable[[], tuple[PipelineDepende
             embedding_client=embedding_client,
             qdrant_client=qdrant_client,
         )
-        return deps, session
+        return BackgroundPipelineDeps(deps=deps, session=session)
 
     return _build
 
@@ -312,9 +315,9 @@ async def post_ingest(
     acl_override: str | None = Form(default=None),
     auth: AuthContext = Depends(require_auth),
     scheduler: TaskScheduler = Depends(get_task_scheduler),
-    deps: PipelineDependencies = Depends(get_pipeline_dependencies),
+    job_store: JobStore = Depends(get_job_store),
     session: Session = Depends(get_session),
-    background_pipeline_deps_factory: Callable[[], tuple[PipelineDependencies, Session]] = Depends(
+    background_pipeline_deps_factory: Callable[[], BackgroundPipelineDeps] = Depends(
         get_background_pipeline_deps_factory
     ),
 ) -> IngestResponse | object:
@@ -335,7 +338,7 @@ async def post_ingest(
     except (json.JSONDecodeError, ValidationError) as exc:
         return error_response(400, "invalid_request", f"Invalid acl_override: {exc}")
 
-    job_id = deps.job_store.create_job("ingest")
+    job_id = job_store.create_job("ingest")
     version_id = _create_document_and_version(
         session, document_id=job_id, repository_id=repository_id, acl=acl
     )
@@ -343,6 +346,10 @@ async def post_ingest(
     # independent session (get_background_pipeline_deps_factory; see this
     # module's own docstring) and needs the job/document/version rows to
     # already be durable and visible to it, not just pending in this session.
+    # get_session()'s own post-yield `session.commit()` still runs too, once
+    # this request's dependency teardown eventually happens -- a harmless
+    # no-op second commit on a session with nothing left uncommitted, not a
+    # double-write, so it's left as-is rather than restructured to avoid it.
     session.commit()
 
     identity = DocumentIdentity(document_id=job_id, version_id=version_id, repository_id=repository_id)
@@ -351,20 +358,20 @@ async def post_ingest(
     filename = file.filename or "upload"
 
     def _run_ingest_pipeline() -> None:
-        bg_deps, bg_session = background_pipeline_deps_factory()
+        background = background_pipeline_deps_factory()
         try:
             try:
                 resume_ingest_job(
-                    job_id, file_bytes, filename, identity=identity, target=target, deps=bg_deps
+                    job_id, file_bytes, filename, identity=identity, target=target, deps=background.deps
                 )
             finally:
                 # Commit regardless of outcome: on failure, ingest/pipeline.py's
                 # own _run_pipeline() already wrote a "failed" job_store update
                 # before re-raising -- that update must persist too, not just
                 # a successful run's "ready" state.
-                bg_session.commit()
+                background.session.commit()
         finally:
-            bg_session.close()
+            background.session.close()
 
     scheduler.schedule(_run_ingest_pipeline)
     logger.warning(
@@ -386,10 +393,10 @@ async def post_ingest(
 async def get_ingest_status(
     document_id: uuid.UUID,
     auth: AuthContext = Depends(require_auth),
-    deps: PipelineDependencies = Depends(get_pipeline_dependencies),
+    job_store: JobStore = Depends(get_job_store),
 ) -> IngestStatusResponse | object:
     try:
-        payload = deps.job_store.get_payload(document_id)
+        payload = job_store.get_payload(document_id)
     except LookupError:
         # Covers both InMemoryJobStore's bare KeyError (a subclass of
         # LookupError) and SqlAlchemyJobStore's own explicit LookupError.

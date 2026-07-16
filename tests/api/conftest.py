@@ -19,8 +19,9 @@ from qdrant_client import QdrantClient
 
 from acl.ingest_stub import FakeACLLookup
 from api.ingest_routes import (
+    BackgroundPipelineDeps,
     get_background_pipeline_deps_factory,
-    get_pipeline_dependencies,
+    get_job_store,
     get_session,
     get_task_scheduler,
 )
@@ -72,7 +73,7 @@ def fake_scheduler() -> FakeTaskScheduler:
 @pytest.fixture
 def fake_background_pipeline_deps_factory(
     fake_pipeline_deps: PipelineDependencies,
-) -> Callable[[], tuple[PipelineDependencies, MagicMock]]:
+) -> Callable[[], BackgroundPipelineDeps]:
     """Fakes `get_background_pipeline_deps_factory`'s return value: a
     zero-arg callable, not a `PipelineDependencies` itself (see the real
     dependency's own docstring on why the background task needs its own
@@ -83,8 +84,8 @@ def fake_background_pipeline_deps_factory(
     `test_ingest_routes.py`'s own dedicated session-independence test builds
     its own factory instead, to actually observe per-call behavior."""
 
-    def _build() -> tuple[PipelineDependencies, MagicMock]:
-        return fake_pipeline_deps, MagicMock()
+    def _build() -> BackgroundPipelineDeps:
+        return BackgroundPipelineDeps(deps=fake_pipeline_deps, session=MagicMock())
 
     return _build
 
@@ -92,15 +93,15 @@ def fake_background_pipeline_deps_factory(
 @pytest.fixture
 def ingest_client(
     client: TestClient,
-    fake_pipeline_deps: PipelineDependencies,
+    job_store: InMemoryJobStore,
     fake_scheduler: FakeTaskScheduler,
     mock_session: MagicMock,
-    fake_background_pipeline_deps_factory: Callable[[], tuple[PipelineDependencies, MagicMock]],
+    fake_background_pipeline_deps_factory: Callable[[], BackgroundPipelineDeps],
 ) -> Iterator[TestClient]:
     """`client` plus the ingest-route-specific dependency overrides. Cleans
     up `app.dependency_overrides` afterward so nothing leaks into a test
     module that doesn't use this fixture."""
-    app.dependency_overrides[get_pipeline_dependencies] = lambda: fake_pipeline_deps
+    app.dependency_overrides[get_job_store] = lambda: job_store
     app.dependency_overrides[get_task_scheduler] = lambda: fake_scheduler
     app.dependency_overrides[get_session] = lambda: mock_session
     app.dependency_overrides[get_background_pipeline_deps_factory] = (
@@ -109,7 +110,7 @@ def ingest_client(
     try:
         yield client
     finally:
-        app.dependency_overrides.pop(get_pipeline_dependencies, None)
+        app.dependency_overrides.pop(get_job_store, None)
         app.dependency_overrides.pop(get_task_scheduler, None)
         app.dependency_overrides.pop(get_session, None)
         app.dependency_overrides.pop(get_background_pipeline_deps_factory, None)

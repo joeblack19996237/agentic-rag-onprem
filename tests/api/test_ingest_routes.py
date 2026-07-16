@@ -22,8 +22,9 @@ from qdrant_client import QdrantClient
 from acl.ingest_stub import EffectiveACL
 from api.ingest_routes import (
     ACLOverride,
+    BackgroundPipelineDeps,
     get_background_pipeline_deps_factory,
-    get_pipeline_dependencies,
+    get_job_store,
     get_session,
 )
 from api.main import app
@@ -138,18 +139,18 @@ def test_background_task_uses_independent_session(
 
     background_sessions: list[MagicMock] = []
 
-    def _factory() -> tuple[PipelineDependencies, MagicMock]:
+    def _build() -> BackgroundPipelineDeps:
         bg_session = MagicMock()
         background_sessions.append(bg_session)
-        return shared_fake_deps, bg_session
+        return BackgroundPipelineDeps(deps=shared_fake_deps, session=bg_session)
 
-    app.dependency_overrides[get_pipeline_dependencies] = lambda: shared_fake_deps
+    app.dependency_overrides[get_job_store] = lambda: job_store
     app.dependency_overrides[get_session] = lambda: request_session
-    app.dependency_overrides[get_background_pipeline_deps_factory] = lambda: _factory
+    app.dependency_overrides[get_background_pipeline_deps_factory] = lambda: _build
     try:
         response = _upload(client, admin_api_key)
     finally:
-        app.dependency_overrides.pop(get_pipeline_dependencies, None)
+        app.dependency_overrides.pop(get_job_store, None)
         app.dependency_overrides.pop(get_session, None)
         app.dependency_overrides.pop(get_background_pipeline_deps_factory, None)
 
