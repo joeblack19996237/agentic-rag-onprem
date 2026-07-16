@@ -19,12 +19,22 @@ Purpose: let a reviewer (human or Claude) know *what's where* and *which DEC/REQ
 | [04-architecture.md](04-architecture.md) | ~100K / ~1227 lines (grown by multiple post-Stage-8 DECs since the 2026-07-05 ~1160-line note; **re-grep `^## \|^### ` before trusting any offset elsewhere in this repo that cites a `04-architecture.md` line number** — see the Architecture review matrix note below) | Build-approach decision, tech stack, hardware matrix, module map, typed state, JIT two-layer ECM/CCM authorization; RAGAS eval judge model spec (DEC-130); LangGraph version corrected 0.2.x→1.2.x (DEC-131), 0.x→1.x API-compatibility confirmed non-breaking for this design (DEC-132); Python version re-pinned 3.12→3.14 (DEC-134); `corpus_id` = `repository_id` defined (DEC-144) | DEC-032, DEC-041, DEC-052, DEC-053, DEC-055, DEC-075, DEC-076, DEC-077, DEC-079, DEC-082, DEC-130, DEC-131, DEC-132, DEC-134, DEC-144, REQ-050, NFR-001 |
 | [06-api-contracts.md](06-api-contracts.md) | ~21K, expanded to full schema at Stage 7 (**corrected 2026-07-16 — this row still said "stub, added 2026-07-05, full schema is Stage 6" long after Stage 7 expanded it; row 94's own Selected-Generated entry already had the current size/state, this Group B summary just hadn't been updated to match**) | Endpoint enumeration (Query/Ingest/Admin/Operational surfaces); admin-scope JWT claim enforcement flagged as not-yet-shipped (DEC-145) | DEC-107, DEC-145, REQ-057 |
 | [20-agent-behavior.md](20-agent-behavior.md) | 13K / 203 lines | Turn pipeline (LangGraph), model permissions, V2 ReAct fallback, review queue, failure/refusal taxonomy | DEC-039, DEC-042, DEC-058, DEC-075, DEC-077, DEC-082, DEC-131, REQ-015, REQ-016, REQ-027 |
+| [03-workflows.md](03-workflows.md) | ~17K | Workflow/permission paths (admin, end-user, vendor-integrator); admin-scope JWT enforcement flagged not-yet-shipped (DEC-145) | DEC-145 |
+| [05-data-model.md](05-data-model.md) | ~31K | Logical data model; `legal_hold_invalidation_events` entity; `repository_id`'s dual use as Qdrant `corpus_id` made explicit (DEC-144) | DEC-144 |
+| [07-database.md](07-database.md) | ~21K | Physical Postgres/Qdrant schema derived from `05-data-model.md`; `corpus_id` = `repository_id` defined (DEC-144) | DEC-144 |
+| [09-deployment-ops.md](09-deployment-ops.md) | ~24K | Deployment topologies, config/secrets management, encryption-at-rest runbook; closes RC-T3-01/RC-T4-02/RC-T6-02 | — |
+| [22-memory-context.md](22-memory-context.md) | ~12K | Conversation memory/context-window management, server-side history reconstruction (no client-supplied history trusted) | — |
+| [41-integration-contracts.md](41-integration-contracts.md) | ~17K | ECM/CCM vendor integration contracts (`ECMAdapter` Protocol, auth model), consolidated for vendor-integrator audience from §7B | — |
+| [42-compliance-security.md](42-compliance-security.md) | ~12K | Compliance posture, STRIDE threat model, trust boundaries, access control; admin-scope JWT gap + `RISK-023` cross-referenced (DEC-145) | DEC-145, RISK-023 |
+
+**Added to this group 2026-07-16** (`03/05/07/09/22/41/42`, all previously listed only in the Selected-Generated table below with no review-group assignment — found while preparing this project's second cross-model `specs/` review; each traces primarily to `04-architecture.md` or `20-agent-behavior.md` above, per the Selected-Generated table's own "Traces to" column). A file with no group assignment is invisible to anyone scoping a review by group, including an external reviewer following this table's own Group A → B → ... order — this is exactly the kind of gap a same-family reviewer is structurally prone to leave uncaught, since it's a gap in the review's own scaffolding, not in the content being reviewed.
 
 ### Group C — Evals, Guardrails & Observability
 | File | Size | Covers | Key ids |
 |---|---|---|---|
 | [23-evals-guardrails.md](23-evals-guardrails.md) | 15K / 214 lines | RAGAS metrics/thresholds + judge model (DEC-130), golden set, eval runner + failure routing, prompt-injection & output guardrails, context fingerprint, onboarding runbook | DEC-017, DEC-052, DEC-060, DEC-078, REQ-014, REQ-035, RC-T6-01, DEC-128, DEC-130 |
 | [08-observability-logs.md](08-observability-logs.md) | ~18K | Log/metric/trace/dashboard/alert schema, SLOs; domain-specific span attributes + `nli_entailment_score` histogram + trace sampling + trace-to-regression path (DEC-128); `cost_per_turn` formula (DEC-129) | DEC-016, DEC-068, DEC-109, NFR-024, NFR-026, NFR-033, DEC-128, DEC-129 |
+| [24-prompt-registry.md](24-prompt-registry.md) | ~10K | Prompt-changelog discipline (going-forward, not retroactive) — added to this group 2026-07-16, same coverage-gap fix as Group B above | — |
 
 ### Group D — Decision Log (canonical, cross-cutting)
 | File | Size | Covers |
@@ -39,6 +49,16 @@ Purpose: let a reviewer (human or Claude) know *what's where* and *which DEC/REQ
 | [92-stage5-review-memos.md](92-stage5-review-memos.md) | 94K / 939 lines | Stage 5 architecture review findings (D1 hidden assumptions, D2 positioning, ...). **These are open findings against Group A/B/C — check whether each has been resolved into a DEC/REQ or is still outstanding.** |
 | [92a-stage5r2-benchmark.md](92a-stage5r2-benchmark.md) | 76K / 578 lines | Stage 5 Round 2 benchmark against 2026 mature-practice patterns (orchestration, concurrency/queue/cache, per-claim verification) |
 | [groundeddocs-handoff-2026-06-28.md](groundeddocs-handoff-2026-06-28.md) | 16K / 200 lines | Agent handoff snapshot as of 2026-06-28: locked decisions, open items, style guide. **Time-stamped — verify still current before trusting "where the workflow stands".** |
+
+### Group F — Build, Test & Verification Plan (added 2026-07-16, closing the same review-groups coverage gap as Group B/C above)
+
+**Different rubric than A/B/C**: these three files ARE the REQ/NFR → architecture → task → test → verification-gate traceability chain (`13-decision-log.md`'s Traceability dimension and this index's own "How to use this index for a review" step 3, below, already point at spot-checking it). Review for cross-reference integrity — does every MVP REQ/NFR trace to a real `TASK-###`, does every task's Acceptance Criteria have a matching `TEST-###`, does every test have a `VG-###` — not for product/architecture content quality, which is what A/B/C's rubric is for.
+
+| File | Size | Covers | Key ids |
+|---|---|---|---|
+| [10-build-plan.md](10-build-plan.md) | ~41K (grown post-Stage-8) | Phase 1-6 build tasks, TDD Red/Green/Refactor, acceptance criteria, verification evidence | TASK-001..TASK-040 |
+| [11-test-plan.md](11-test-plan.md) | ~20K (grown post-Stage-8) | Test inventory, environments (incl. this agent sandbox's own tiering, DEC-135/140/141), performance-regression methodology (DEC-139) | TEST-001..TEST-041 |
+| [12-verification.md](12-verification.md) | ~14K (grown post-Stage-8) | Verification gates, demo script | VG-001..VG-036 |
 
 ## Architecture review matrix (dimension-based, primary review axis)
 
@@ -77,9 +97,10 @@ Each dimension pass should end its findings with a line like: *"Touches: acl/, c
 
 1. **Pick a review question first** (e.g. "is Group B internally consistent with the decision log?"), not "review everything."
 2. **Scope one subagent per group** (A, B, C) with the same rubric: internal consistency, REQ/DEC ids resolve to a real entry in `13-decision-log.md`, terminology matches across files, acceptance criteria present for every REQ.
-3. **Run a separate cross-reference pass** over Group D: grep all `DEC-\d+` / `REQ-\d+` occurrences repo-wide, confirm every id in A/B/C exists in the log and nothing in the log is orphaned (defined but never referenced downstream).
+3. **Run a separate cross-reference pass** over Group D: grep all `DEC-\d+` / `REQ-\d+` occurrences repo-wide, confirm every id in A/B/C exists in the log and nothing in the log is orphaned (defined but never referenced downstream). **Group F uses this same cross-reference approach, narrowed to one specific chain**: grep every MVP `REQ-###`/`NFR-###` and confirm each resolves to a `TASK-###` in `10-build-plan.md`, each such task's Acceptance Criteria to a `TEST-###` in `11-test-plan.md`, and each test to a `VG-###` in `12-verification.md` — don't review Group F's three files for content quality the way A/B/C are reviewed, review them for whether the chain actually holds end-to-end.
 4. **Treat Group E as evidence, not spec** — findings in `92-stage5-review-memos.md` should each map to either an accepted DEC (now in Group D) or a still-open item; flag any that are neither.
 5. **For incremental review**, diff against the last-reviewed commit instead of re-reading full files: `git diff <baseline>..HEAD -- specs/`.
+6. **Before scoping any review by group, confirm every file in the "Selected — Generated" table below actually has a Group A-F assignment above** — a file present in that table but absent from every group section is invisible to a group-scoped review, exactly the gap found and closed here 2026-07-16 (11 of 21 generated files had no group at all). This step exists so the same gap doesn't reopen silently the next time a new spec file is generated without its Procedure-A "add to review group" step being completed.
 
 ## Stage 6 — Selected / Skipped Specs (confirmed by user, 2026-07-06)
 
