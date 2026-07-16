@@ -30,7 +30,7 @@ This is the "how do I actually run this thing" document: what hardware to buy, h
 
 ## Infrastructure Components
 
-Full component list is `04-architecture.md` §9.1's docker-compose service list (`api`, `vllm`, `tei-embed`, `tei-rerank`, `nli`, `safety-input`, `safety-output`, `policy`, `qdrant`, `postgres`, `redis`, `widget`) — not re-derived here.
+Full component list is `04-architecture.md` §9.1's docker-compose service list (`api`, `vllm`, `tei-embed`, `tei-embed-sparse`, `tei-rerank`, `nli`, `safety-input`, `safety-output`, `policy`, `qdrant`, `postgres`, `redis`, `widget`) — not re-derived here. **`tei-embed-sparse` named explicitly here as of 2026-07-16 (DEC-146)** rather than left implicit via this line's own cross-reference to §9.1, since a prior gap (DEC-142's propagation missing this exact line) is what let the sparse service go undocumented across four deployment-surface files simultaneously — see DEC-146 for the full list.
 
 ### Hardware Compatibility Matrix — Measured VRAM Occupancy (closes RC-T3-01)
 

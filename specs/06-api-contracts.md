@@ -296,6 +296,7 @@ Response header: `X-Next-Cursor: <opaque cursor>` (NDJSON streaming responses ca
   "services": {
     "vllm": "boolean",
     "tei_embed": "boolean",
+    "tei_embed_sparse": "boolean",
     "tei_rerank": "boolean",
     "nli": "boolean",
     "safety_input": "boolean",
@@ -308,16 +309,18 @@ Response header: `X-Next-Cursor: <opaque cursor>` (NDJSON streaming responses ca
 }
 ```
 
+**`tei_embed_sparse` added 2026-07-16 (DEC-146)**: the dedicated SPLADE-model deployment DEC-142 introduced alongside `tei_embed` (bge-m3 dense) — a separate container, separate health check, not a sub-field of `tei_embed`.
+
 ### Example
 
 Mid-startup (models still loading):
 ```json
-{"ready": false, "services": {"vllm": false, "tei_embed": true, "tei_rerank": true, "nli": true, "safety_input": false, "safety_output": false, "policy": true, "qdrant": true, "postgres": true, "redis": true}}
+{"ready": false, "services": {"vllm": false, "tei_embed": true, "tei_embed_sparse": true, "tei_rerank": true, "nli": true, "safety_input": false, "safety_output": false, "policy": true, "qdrant": true, "postgres": true, "redis": true}}
 ```
 
 Fully ready:
 ```json
-{"ready": true, "services": {"vllm": true, "tei_embed": true, "tei_rerank": true, "nli": true, "safety_input": true, "safety_output": true, "policy": true, "qdrant": true, "postgres": true, "redis": true}}
+{"ready": true, "services": {"vllm": true, "tei_embed": true, "tei_embed_sparse": true, "tei_rerank": true, "nli": true, "safety_input": true, "safety_output": true, "policy": true, "qdrant": true, "postgres": true, "redis": true}}
 ```
 
 The per-service breakdown (not just a top-level boolean) is deliberate: it lets an install-verification script or ops dashboard show *which* service is still starting, rather than an opaque "not ready" with no diagnostic value — directly useful during the REQ-011 ≤30-minute install window.
