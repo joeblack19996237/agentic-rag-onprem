@@ -59,6 +59,8 @@ Each smell reads *what it is* → *how to fix*; match it against the diff:
 
 Send a single message with two `Agent` tool calls. Use the `general-purpose` subagent for both.
 
+**Both prompts must include this scoping line verbatim** (found the hard way, 2026-07-16: a sub-agent used `git stash` plus hand-edits to independently verify a claim, which is reasonable *verification* method but touched the shared working tree while unrelated uncommitted work was sitting in it — nothing was lost that time, only because the agent itself cleaned up after itself, but the caller had no guarantee of that): "This is a read-only review. Do not run any command that mutates the working tree or the index — no `git stash`, `git checkout`, `git reset`, `git add`, `git commit`, and no editing/writing any file. If you need to inspect a specific commit's content in isolation, use `git show <ref>:<path>` or `git diff <ref> -- <path>`, which read history without touching the working tree. Report findings only."
+
 **Standards sub-agent prompt** — include:
 
 - The full diff command and commit list.
