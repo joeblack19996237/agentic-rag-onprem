@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: ready-for-human
 
 # Issue 04: Admin Audit List + Model-Version Read
 
@@ -22,14 +22,18 @@ None — traces directly to `specs/10-build-plan.md` TASK-033. No PRD (see Issue
 
 ## Acceptance criteria
 
-- [ ] `GET /v1/admin/audit` returns audit events filtered by `from`/`to`/`user_id`, cursor-paginated, against a mocked `Session` (Tier A) with the compiled query's `WHERE` clause asserted (correct filter columns, exact-string `user_id` match)
+- [x] `GET /v1/admin/audit` returns audit events filtered by `from`/`to`/`user_id`, cursor-paginated, against a mocked `Session` (Tier A) with the compiled query's `WHERE` clause asserted (correct filter columns, exact-string `user_id` match)
       Verification: `pytest tests/admin/test_audit.py -k lists_filtered_paginated -v`
-- [ ] Cursor pagination correctly excludes/includes rows when new rows are inserted between two simulated page fetches, using the `FakeAuditEventStore` (Tier B) — no record skipped or duplicated across the simulated pages
+      **Done (2026-07-16)**: `audit/event_store.py`'s `SqlAlchemyAuditEventStore.list_events` asserts the `WHERE` clause's actual bound values (`from_ts`/`to_ts`/`user_id` all present in `.compile().params`), plus a separate test confirming the `user_id` clause is correctly omitted when not filtering. `ORDER BY timestamp DESC, audit_id DESC` mutation-tested (flipping to `.asc()` is caught).
+- [x] Cursor pagination correctly excludes/includes rows when new rows are inserted between two simulated page fetches, using the `FakeAuditEventStore` (Tier B) — no record skipped or duplicated across the simulated pages
       Verification: `pytest tests/admin/test_audit.py -k pagination_correct_under_interleaved_insert -v`
-- [ ] `GET /v1/admin/config/models` returns a `{role, model_version}` pair for every one of the 7 roles (Tier A; not the full `model_versions` row — see "Response shape" above), and a role with no active version returns `{role, model_version: null}` (with a warning logged) rather than failing the whole request
+      **Done (2026-07-16)**: 5 seeded events, paged 2-at-a-time; a new newest-sorting event is seeded between page 1 and page 2's fetch. Mutation-tested: changing the cursor filter from `<` to `<=` duplicates an event into page 2, caught. Independent implementation from `admin/document_store.py`'s `FakeDocumentStore`/`_paginate` per this issue's own risk-review (two occurrences isn't a pattern worth abstracting yet).
+- [x] `GET /v1/admin/config/models` returns a `{role, model_version}` pair for every one of the 7 roles (Tier A; not the full `model_versions` row — see "Response shape" above), and a role with no active version returns `{role, model_version: null}` (with a warning logged) rather than failing the whole request
       Verification: `pytest tests/admin/test_config_models.py -k lists_active_version_per_role -v`
-- [ ] Both routes accept **either** a valid JWT **or** a valid admin API key (tested independently), and reject an invalid/missing credential with `401` — reusing Issue 01's middleware. Deliberately narrow scope: this re-verifies that *these specific routes* are wired to the shared middleware, not Issue 01's full algorithm/`kid`/JWKS matrix, which stays exclusively Issue 01's job.
+      **Done (2026-07-16)**: `config/active_model_version.py`'s `list_active_model_versions` loops `KNOWN_ROLES`, catching `NoActiveModelVersionError` per-role. Mutation-tested: removing the per-role `try`/`except` makes one missing role fail the entire request instead of degrading to `model_version: null` — caught. `caplog` confirms the warning is actually logged, not just that the response shape is correct.
+- [x] Both routes accept **either** a valid JWT **or** a valid admin API key (tested independently), and reject an invalid/missing credential with `401` — reusing Issue 01's middleware. Deliberately narrow scope: this re-verifies that *these specific routes* are wired to the shared middleware, not Issue 01's full algorithm/`kid`/JWKS matrix, which stays exclusively Issue 01's job.
       Verification: `pytest tests/admin/test_audit.py -k requires_auth -v && pytest tests/admin/test_config_models.py -k requires_auth -v`
+      **Done (2026-07-16)**: 4 tests per route ({missing, invalid admin key, valid admin key, valid JWT}). `/v1/admin/audit`'s auth wiring was mutation-tested (removing `Depends(require_auth)` caught, per Issue 03's precedent); `/v1/admin/config/models`'s equivalent mutation was blocked by this environment's own safety classifier (running code with auth deliberately disabled) — relied on the 4 passing positive/negative tests alone for that route instead.
 
 ## Manual verification
 

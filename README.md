@@ -35,7 +35,7 @@ See [`specs/01-product-brief.md`](specs/01-product-brief.md) for the full proble
 - ✅ api-surface Issue 01 — auth foundation (JWT bearer + admin API key), OpenAPI schema-drift contract test, `POST /v1/query` stub
 - ✅ api-surface Issue 02 — ingest HTTP routes (`POST /v1/ingest`, `GET /v1/ingest/{document_id}`) wired to the existing pipeline
 - ✅ api-surface Issue 03 — admin document management (`GET`/`PUT /v1/admin/documents`: cursor-paginated list, soft-delete/ACL-edit/authority_state update)
-- ⏳ api-surface Issue 04 — admin audit list + model-version read (`GET /v1/admin/audit`, `GET /v1/admin/config/models`)
+- ✅ api-surface Issue 04 — admin audit list + model-version read (`GET /v1/admin/audit`, `GET /v1/admin/config/models`)
 
 If this list looks out of date, [`.scratch/phase-1-bootstrap/issues/`](.scratch/phase-1-bootstrap/issues/), [`.scratch/data-foundation/issues/`](.scratch/data-foundation/issues/), [`.scratch/document-ingest-pipeline/issues/`](.scratch/document-ingest-pipeline/issues/), and [`.scratch/api-surface/issues/`](.scratch/api-surface/issues/) (or the next phase's issue directory) are the authoritative status, not this README.
 
